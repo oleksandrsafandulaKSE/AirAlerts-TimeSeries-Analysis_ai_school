@@ -1,0 +1,13 @@
+data/
+*.csv
+*.parquet
+*.pkl
+models/*.txt
+.idea/
+.vscode/
+__pycache__/
+.venv/
+.ipynb_checkpoints/
+.DS_Store
+.env
+!reports/**/*.csv

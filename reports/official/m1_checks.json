@@ -1,0 +1,63 @@
+{
+  "missing_finished_at": 0,
+  "zero_duration": 2,
+  "exactly_30min_total": 38,
+  "exactly_30min_by_level": {
+    "oblast": 24,
+    "raion": 13,
+    "hromada": 1
+  },
+  "over_24h_by_unit": {
+    "dnipropetrovska": 370,
+    "donetska": 304,
+    "zaporizka": 46,
+    "kharkivska": 14,
+    "chernihivska": 11,
+    "sumska": 10,
+    "zakarpatska": 2
+  },
+  "over_24h_total": 757,
+  "rows_by_level": {
+    "raion": 85772,
+    "oblast": 65190,
+    "hromada": 20060
+  },
+  "rows_by_unit": {
+    "dnipropetrovska": 25603,
+    "kharkivska": 23379,
+    "donetska": 15969,
+    "zaporizka": 15635,
+    "sumska": 12434,
+    "poltavska": 9019,
+    "chernihivska": 8916,
+    "mykolaivska": 8588,
+    "odeska": 7641,
+    "khersonska": 7180,
+    "kirovohradska": 6605,
+    "kyivska": 6143,
+    "cherkaska": 5802,
+    "vinnytska": 2848,
+    "zhytomyrska": 2711,
+    "kyiv_city": 2144,
+    "khmelnytska": 1578,
+    "rivnenska": 1538,
+    "lvivska": 1387,
+    "ivano_frankivska": 1287,
+    "volynska": 1216,
+    "zakarpatska": 1182,
+    "ternopilska": 1157,
+    "chernivetska": 1060
+  },
+  "detected_gaps": [
+    [
+      "2026-08-29 05:00:00+00:00",
+      "2026-09-02 13:00:00+00:00"
+    ]
+  ],
+  "masked_share_before_test": {
+    "active": 0.16846403941748933,
+    "any": 0.16846403941748933
+  },
+  "gap_rows": 3480,
+  "base_rate_2024_avg": 0.10073932882804829
+}

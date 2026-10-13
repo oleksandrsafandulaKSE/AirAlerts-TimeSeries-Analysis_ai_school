@@ -305,6 +305,41 @@ def toy_grid(rate_2024, rate_2025, rate_test=0.0):
 def test_base_rate_check():
     before = pd.Timestamp("2026-07-27", tz="UTC")
     with pytest.raises(DataQualityError):
-        grid.check_base_rate(toy_grid(0.10, 0.04), before)
-    assert grid.check_base_rate(toy_grid(0.10, 0.06), before) == pytest.approx(0.10)
-    grid.check_base_rate(toy_grid(0.10, 0.06, rate_test=0.0), before)  # test-period quarter ignored
+        grid.check_base_rate(toy_grid(0.10, 0.04), before, H)
+    assert grid.check_base_rate(toy_grid(0.10, 0.06), before, H) == pytest.approx(0.10)
+    grid.check_base_rate(toy_grid(0.10, 0.06, rate_test=0.0), before, H)  # test-period quarter ignored
+
+
+# ---------------- H = 3 (M3b) ----------------
+H3 = pd.Timedelta(hours=3)
+
+
+def test_h3_label_edges_and_onset_at_t():
+    on_edge = grid.build_grid(alerts([("A", "05:00", "05:40")]), T("00:00"), T("08:00"), H3, unit_list=["A"])
+    after = grid.build_grid(alerts([("A", "05:01", "05:40")]), T("00:00"), T("08:00"), H3, unit_list=["A"])
+    e, a = on_edge.set_index("t"), after.set_index("t")
+    assert e.loc[T("02:00"), "y"] == 1 and a.loc[T("02:00"), "y"] == 0      # t+3h included, t+3h+1min not
+    assert e.loc[T("05:00"), "y"] == 0 and e.loc[T("05:00"), "active_at_t"] == 1   # onset at t: not in y(t), masks t
+    z = grid.build_grid(alerts([("A", "05:00", "05:00")]), T("00:00"), T("08:00"), H3, unit_list=["A"]).set_index("t")
+    assert z["active_at_t"].sum() == 0 and z.loc[T("02:00"), "y"] == 1     # zero-duration: onset, masks nothing
+
+
+def test_h3_gap_mask_edges():
+    gap = ((T("2024-01-11 10:00"), T("2024-01-11 14:00")),)
+    df = grid.build_grid(alerts([]), T("2024-01-11 00:00"), T("2024-01-13 00:00"), H3, unit_list=["A"],
+                         approved_gaps=gap).set_index("t")
+    assert df.loc[T("2024-01-11 06:00"), "gap_mask"] == 0          # g0 - 4h
+    assert df.loc[T("2024-01-11 07:00"), "gap_mask"] == 1          # g0 - 3h
+    assert df.loc[T("2024-01-12 13:00"), "gap_mask"] == 1
+    assert df.loc[T("2024-01-12 14:00"), "gap_mask"] == 0          # g1 + 24h: recovered
+    assert int(df.gap_mask.sum()) == 3 + 4 + 24
+
+
+def test_h3_base_rate_uses_mature_labels_only():
+    C = T("2024-01-10 10:00")
+    g = pd.DataFrame({"t": pd.date_range(T("00:00"), periods=10, freq="h"), "mask": 0, "group": "rear", "y": 0.0})
+    g.loc[g.t >= C - pd.Timedelta(hours=2), "y"] = 1.0           # rows C-2h, C-1h: windows reach past C
+    _, _, used = grid.base_rate_table(g, C, H3)
+    assert used["t"].max() == C - H3 and used["y"].sum() == 0
+    _, _, used1 = grid.base_rate_table(g, C, H)
+    assert used1["t"].max() == C - H

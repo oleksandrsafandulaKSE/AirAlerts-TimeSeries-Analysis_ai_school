@@ -1,0 +1,64 @@
+[codex] I’ll read the updated plan and response against the prior findings, then check each provisional decision against the p
+[codex] > 'cat plans/M4.md reviews/M4-codex-r4.md reviews/M4-claude-r4.md CLAUDE.md DECISIONS.md .claude/skill
+[codex] > 'wc -l reviews/M4-codex-r4.md reviews/M4-claude-r4.md; tail -70 reviews/M4-codex-r4.md; cat reviews/
+[codex] > "cat CLAUDE.md; rg --files --hidden -g AGENTS.md -g '"'!'"\\.git' .; cat src/config.py; rg -n 'histo
+[codex] The prior findings remain addressed in the plan. The new change is the API history boundary; I’m applying the leakage-
+[codex] > "sed -n '1,83p' DECISIONS.md; cat src/grid.py src/features.py; ls data/raw/alerts_in_ua/2026-10-12T1
+[codex] > ".venv/bin/python - <<'PY'
+import json,csv
+from datetime import datetime,timedelta
+from pathlib import Path
+from src import regions
+p=Path('data/raw/alerts_in_ua/2026-10-12T1645Z')
+manifest=list(csv.DictReader((p/'manifest.tsv').open(),delimiter='\\t'))
+uids={str(regions.UNITS[u]['api_uid']) for u in regions.units()}
+cutoffs=[]; margins=[]; old=0; first=None; total=0
+for row in manifest:
+ if row['uid'] not in uids: continue
+ fetched=datetime.fromisoformat(row['fetched_at_utc'].replace('Z','+00:00'))
+ cutoff=fetched-timedelta(days=30);cutoffs.append(cutoff)
+ obj=json.loads((p/('uid_'+row['uid']+'.json')).read_text())
+ alerts=obj['alerts']
+ for a in alerts:
+  total+=1
+  s=datetime.fromisoformat(a['started_at'].replace('Z','+00:00'))
+  if a['finished_at']:
+   e=datetime.fromisoformat(a['finished_at'].replace('Z','+00:00'))
+   margins.append((e-cutoff).total_seconds())
+   if s<cutoff:old+=1
+   first=s if first is None else min(first,s)
+print({'units':len(cutoffs),'history_start':str(max(cutoffs)),'earliest_closed_start':str(first),'cl
+PY"
+[codex] > ".venv/bin/python -c 'import json,csv; from datetime import datetime,timedelta; from pathlib import 
+p=Path(\"data/raw/alerts_in_ua/2026-10-12T1645Z\")
+manifest=list(csv.DictReader((p/\"manifest.tsv\").open(),delimiter=\"\\t\"))
+uids={str(regions.UNITS[u][\"api_uid\"]) for u in regions.units()}
+cutoffs=[]; margins=[]; old=0; first=None; total=0
+for row in manifest:
+ if row[\"uid\"] not in uids: continue
+ fetched=datetime.fromisoformat(row[\"fetched_at_utc\"].replace(\"Z\",\"+00:00\"))
+ cutoff=fetched-timedelta(days=30);cutoffs.append(cutoff)
+ alerts=json.loads((p/(\"uid_\"+row[\"uid\"]+\".json\")).read_text())[\"alerts\"]
+ for a in alerts:
+  total+=1
+  s=datetime.fromisoformat(a[\"started_at\"].replace(\"Z\",\"+00:00\"))
+  if a[\"finished_at\"]:
+   e=datetime.fromisoformat(a[\"finished_at\"].replace(\"Z\",\"+00:00\"))
+   margins.append((e-cutoff).total_seconds())
+   if s<cutoff:old+=1
+   first=s if first is None else min(first,s)
+print({\"units\":len(cutoffs),\"history_start\":str(max(cutoffs)),\"earliest_closed_start\":str(firs
+[codex] > ".venv/bin/python -c 'import csv,json; from pathlib import Path; from datetime import datetime,timed
+p=Path(\"data/raw/alerts_in_ua/2026-10-12T1645Z\"); uids={str(regions.UNITS[u][\"api_uid\"]) for u i
+[codex] > ".venv/bin/python -c 'import csv,json; from pathlib import Path; from datetime import datetime,timed
+p=Path(\"data/raw/alerts_in_ua/2026-10-12T1645Z\");rows=[r for r in csv.DictReader((p/\"manifest.tsv
+for r in rows:
+ c=datetime.fromisoformat(r[\"fetched_at_utc\"].replace(\"Z\",\"+00:00\"))-timedelta(days=30)
+ for a in json.loads((p/(\"uid_\"+r[\"uid\"]+\".json\")).read_text())[\"alerts\"]:
+  if a[\"finished_at\"]:
+   s=datetime.fromisoformat(a[\"started_at\"].replace(\"Z\",\"+00:00\"));per+=s<c;global_n+=s<h
+print({\"all_successful_files_before_own_cutoff\":per,\"all_successful_files_before_global_cutoff\":
+[codex] ## PREVIOUS ITEMS
+Reading prompt from stdin...
+session_id=01a1326e-1d34-76c3-a08c-57dc3285b294
+output_path=reviews/M4-codex-r5.md

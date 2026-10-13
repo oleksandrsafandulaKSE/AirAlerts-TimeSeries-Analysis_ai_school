@@ -8,14 +8,17 @@ new yellow/red regime (see D-007).
 Deadline: Mon 12 Oct 2026, 23:59 Kyiv. Simple + correct + explained beats complex.
 
 ## The human is the architect
-Oleksandr makes design decisions. You implement them. Never start a new milestone,
-change the target definition, the evaluation protocol, or add a dependency without
-explicit approval in chat. If you disagree with an instruction, say so with evidence,
-then wait.
+Oleksandr owns the rules and the scope. Never start a new milestone, change the target
+definition, the evaluation protocol, or add a dependency without his explicit approval in chat.
+Milestone PLANS within the existing rules are approved by Claude–Codex consensus (D-026, skill
+`codex-plan-review`, max 5 rounds); design decisions taken that way are PROVISIONAL until he
+ratifies them. A plan that needs a rule change, or a deadlock, goes back to him. If you disagree
+with an instruction, say so with evidence, then wait.
 
 ## Workflow (mandatory — see skill `milestone-protocol`)
-Plan → wait for approval → implement → tests → run `reviewer` subagent → fix →
-summary for the human. One milestone per cycle. Never chain milestones.
+Plan → Claude–Codex consensus loop (≤ 5 rounds; escalate rule changes/deadlock to the human)
+→ implement → tests → run `reviewer` subagent → fix → summary for the human. One milestone per
+cycle. Never chain milestones: wait for the human after every milestone summary.
 
 ## Data
 - Main source (train + final test): https://github.com/Vadimkin/ukrainian-air-raid-sirens-dataset
@@ -87,7 +90,8 @@ summary for the human. One milestone per cycle. Never chain milestones.
   persistence (raw), AND calibrated persistence (per-oblast train rate of P(onset in next H |
   state at t)). The recent-rate baseline is the main bar to beat.
 - Recent rate is ROLLING (D-021, an explicit exception to "baselines frozen"): at t, the unit's
-  onset rate over unmasked rows s in [t−14d, t−H], so only labels that are already known by t.
+  onset rate over unmasked rows s in [t−14d, t−H], so only labels that are already known by t,
+  shrunk toward the unit's train rate: (k + 10·p_unit) / (n + 10) (M3 decision, amends D-021).
   It updates through the test using past observations only. Same label-maturity rule for any
   training rows near a cut-off.
 - PRIMARY metric: Brier skill score vs the rolling recent-rate baseline (D-021). Secondary: Brier,
@@ -132,8 +136,8 @@ summary for the human. One milestone per cycle. Never chain milestones.
    Printing stays as well.
 6. Data-quality checks RAISE errors, not just print: detected gaps, duplicate counts,
    exactly 24 units present. A failing check means a failed run and nothing is committed.
-- API merge rule (M4/M6): remove duplicates by `id`, keep the latest `updated_at`, closed alerts only,
-  and apply the > 24h rule.
+- API merge rule (M4/M6): remove duplicates by `id`, keep the latest `updated_at`, and KEEP open alerts
+  (unknown `finished_at`), handled by the D-020 causal 24h cap like any alert whose end is not yet known (D-027).
 - `data/` stays gitignored (cache + raw JSON). The only committed data is
   `datastore/alerts_in_ua.csv` (M6, D-016).
 - The monthly job runs `pytest` (including the leakage test) before retraining. A failing test means no retrain.
@@ -148,5 +152,5 @@ After each milestone, propose an entry for `DECISIONS.md`. The human edits and c
 ## Scope
 - M1–M5 = project scope. M6 (automated data workflow) = FUTURE WORK (D-016): not built
   unless the human starts it. A yellow-regime model is trained only with the human's explicit approval.
-- Planning has two levels (D-019): roadmap here → Codex → human; then for each milestone plan → Codex
-  → human → implement → tests → reviewer.
+- Planning has two levels (D-019): roadmap → Codex → human; then for each milestone plan → Claude–Codex
+  consensus (D-026) → implement → tests → reviewer → human.

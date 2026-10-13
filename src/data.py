@@ -104,3 +104,129 @@ def alert_counts(alerts):
         "rows_by_level": alerts["level"].value_counts().to_dict(),
         "rows_by_unit": alerts["unit"].value_counts().to_dict(),
     }
+
+
+# ---------------- alerts.in.ua API dump (M4 plan §5.1; D-007, D-015, D-027) ----------------
+
+def read_api_dump(dump_dir):
+    """Raw records + manifest from a saved dump (no network). Every record keeps the UID of the file it came from
+    (the requested region), which is the ONLY unit key (location_oblast_uid holds raion ids)."""
+    import csv
+    import json
+    dump_dir = Path(dump_dir)
+    with open(dump_dir / "manifest.tsv") as fh:
+        manifest = [{"uid": int(r["uid"]), "http": int(r["http"]),
+                     "fetched_at": pd.Timestamp(r["fetched_at_utc"]).tz_convert("UTC")}
+                    for r in csv.DictReader(fh, delimiter="\t")]
+    uids = {m["uid"] for m in manifest}
+    if uids != set(range(3, 32)):
+        raise DataQualityError(f"manifest UIDs {sorted(uids)} != 3..31")
+    not_found = {m["uid"] for m in manifest if m["http"] == 404}
+    if not_found != regions.API_404_UIDS or any(m["http"] not in (200, 404) for m in manifest):
+        raise DataQualityError(f"unexpected HTTP statuses: 404 for {sorted(not_found)}")
+    records = []
+    for m in manifest:
+        if m["http"] != 200:
+            continue
+        payload = json.loads((dump_dir / f"uid_{m['uid']}.json").read_text())
+        for a in payload["alerts"]:
+            records.append({**a, "_file_uid": m["uid"]})
+    return records, manifest
+
+
+def api_alerts(records, manifest, cfg, stats=None, require_all_units=True):
+    """Raw API records -> shared alert format. Dedup by id keeping the latest updated_at; open alerts are KEPT
+    (finished_at = NaT = end unknown; the D-020 cap handles them, D-027). Checks raise."""
+    stats = {} if stats is None else stats
+    raw = pd.DataFrame(records)
+    stats["records_raw"] = len(raw)
+    excl = raw["_file_uid"].isin(regions.EXCLUDED_API_UIDS)
+    stats["excluded_uid_records"] = {int(k): int(v) for k, v in raw.loc[excl, "_file_uid"].value_counts().items()}
+    raw = raw.loc[~excl].copy()
+    raw["unit"] = raw["_file_uid"].map(regions.unit_from_api_uid)  # unknown UID -> KeyError
+    for u, g in raw.groupby("unit"):  # file identity: exactly one oblast, the one its UID maps to
+        names = set(g["location_oblast"])
+        if names != {regions.UNITS[u]["api_oblast_name"]}:
+            raise DataQualityError(f"{u}: file names oblast(s) {names}, expected {regions.UNITS[u]['api_oblast_name']!r}")
+    # alert types: the config must name the kept types explicitly; an unlisted type present raises (M4 plan §5.1)
+    stats["alert_types"] = raw["alert_type"].value_counts().to_dict()
+    kept_types = cfg.api_alert_types
+    if kept_types is None:
+        raise DataQualityError(f"api_alert_types not set in config; types present: {stats['alert_types']}")
+    unknown = set(raw["alert_type"]) - set(kept_types) - {"air_raid", "artillery_shelling", "urban_fights"}
+    if unknown:
+        raise DataQualityError(f"unexpected alert types {sorted(unknown)}")
+    stats["alert_types_dropped"] = raw.loc[~raw["alert_type"].isin(kept_types), "alert_type"].value_counts().to_dict()
+    raw = raw.loc[raw["alert_type"].isin(kept_types)].copy()
+    for col in ("started_at", "updated_at"):
+        if not raw[col].str.endswith("Z").all():
+            raise DataQualityError(f"{col}: timestamps without a 'Z' (UTC) suffix")
+    fin = raw["finished_at"].dropna()
+    if not fin.str.endswith("Z").all():
+        raise DataQualityError("finished_at: timestamps without a 'Z' (UTC) suffix")
+    raw["_updated"] = pd.to_datetime(raw["updated_at"], utc=True, format="ISO8601")  # sort as times, not text
+    two_units = raw.groupby("id")["unit"].nunique()
+    if (two_units > 1).any():
+        raise DataQualityError(f"alert ids present under two units: {two_units[two_units > 1].index[:5].tolist()}")
+    raw = raw.sort_values(["id", "_updated"], kind="stable")
+    n0 = len(raw)
+    raw = raw.drop_duplicates("id", keep="last")
+    stats["duplicate_ids_dropped"] = n0 - len(raw)
+    started = pd.to_datetime(raw["started_at"], utc=True, format="ISO8601")
+    finished = pd.to_datetime(raw["finished_at"], utc=True, format="ISO8601")
+    if (finished < started).any():
+        raise DataQualityError(f"{int((finished < started).sum())} API alerts with finished_at < started_at")
+    out = pd.DataFrame({
+        "source": "api", "alert_id": raw["id"].astype(str).to_numpy(), "unit": raw["unit"].to_numpy(),
+        "level": raw["location_type"].to_numpy(), "started_at": started.to_numpy(),
+        "finished_at": finished.to_numpy(), "alert_level": raw["alert_level"].to_numpy(),
+    })[SHARED_COLUMNS]
+    out["started_at"] = pd.to_datetime(out["started_at"], utc=True)
+    out["finished_at"] = pd.to_datetime(out["finished_at"], utc=True)
+    if not set(out["alert_level"]) <= {"yellow", "red"}:
+        raise DataQualityError(f"unexpected alert_level values {sorted(set(out['alert_level']))}")
+    if require_all_units and set(out["unit"]) != set(regions.units()):
+        raise DataQualityError(f"API unit set mismatch: missing {set(regions.units()) - set(out['unit'])}")
+    is_open = out["finished_at"].isna()
+    stats["open_alerts"] = int(is_open.sum())
+    stats["open_by_unit"] = out.loc[is_open, "unit"].value_counts().to_dict()
+    if cfg.history_start is not None:
+        stats["open_started_in_window"] = int((is_open & (out["started_at"] >= cfg.history_start)
+                                               & (out["started_at"] < cfg.grid_end)).sum())
+    stats["alerts"] = len(out)
+    return out.sort_values(["unit", "started_at", "alert_id"], ignore_index=True)
+
+
+def check_api_coverage(manifest, cfg):
+    """history_start = max over the 24 units' files of (fetched_at - 30 days); coverage_end = earliest fetched_at
+    of those files (M4 plan §5.2). Both must equal the config values."""
+    unit_files = [m for m in manifest if m["http"] == 200 and m["uid"] not in regions.EXCLUDED_API_UIDS]
+    hs = max(m["fetched_at"] for m in unit_files) - pd.Timedelta(days=30)
+    ce = min(m["fetched_at"] for m in unit_files)
+    if hs != cfg.history_start or ce != cfg.coverage_end:
+        raise DataQualityError(f"API coverage differs from config: history_start {hs} vs {cfg.history_start}, "
+                               f"coverage_end {ce} vs {cfg.coverage_end}")
+    return hs, ce
+
+
+def load_api(dump_dir, cfg, stats=None):
+    records, manifest = read_api_dump(dump_dir)
+    check_api_coverage(manifest, cfg)
+    out = api_alerts(records, manifest, cfg, stats)
+    print(f"[data] API: {stats.get('records_raw') if stats else ''} raw records -> {len(out):,} alerts "
+          f"(open {int(out.finished_at.isna().sum())}), {out.started_at.min()} -> {out.started_at.max()}")
+    return out
+
+
+def truncate_api_records(records, t):
+    """The dump as known at t: drop alerts starting after t; hide ends after t (leakage audit)."""
+    out = []
+    for r in records:
+        s = pd.Timestamp(r["started_at"])
+        if s > t:
+            continue
+        r2 = dict(r)
+        if r2["finished_at"] is not None and pd.Timestamp(r2["finished_at"]) > t:
+            r2["finished_at"] = None
+        out.append(r2)
+    return out

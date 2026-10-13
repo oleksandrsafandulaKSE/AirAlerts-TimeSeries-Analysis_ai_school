@@ -8,16 +8,20 @@ description: Mandatory work cycle for every task in this repo. Use at the start 
 Two planning levels (D-019).
 
 0. ROADMAP (planning chat, once, and again only if the roadmap changes): general M1–M6 roadmap
-   in `plans/ROADMAP.md` + README framing → `codex-plan-review` in roadmap mode (one round) →
-   show the human Codex's items plus your lead judgment → STOP. The human corrects the roadmap.
+   in `plans/ROADMAP.md` + README framing → `codex-plan-review` in roadmap mode (consensus loop) →
+   show the human the consensus record → STOP. The human corrects the roadmap.
 
 Then, for each milestone (implementation chat):
 
 1. PLAN — write: goal, files to touch, approach, how it will be tested, risks/assumptions,
-   open questions for the human. Save it to `plans/M<n>.md` → run the `codex-plan-review`
-   skill (one round) → show the human Codex's items plus your lead judgment → STOP and wait
-   for approval.
-2. IMPLEMENT — only the approved plan. If reality differs from the plan, stop and report.
+   open questions. Save it to `plans/M<n>.md` → run the `codex-plan-review` skill: Claude and
+   Codex iterate (max 5 rounds) until Codex gives `VERDICT: AGREE` and Claude has no open
+   disagreement. The human is not asked during the loop.
+   - Consensus, no escalation → the plan counts as approved; go to step 2. Design decisions taken
+     by consensus are PROVISIONAL and listed for the human in the summary (step 5).
+   - Escalation (the plan needs a CLAUDE.md / DECISIONS.md rule change the human hasn't approved)
+     or deadlock after 5 rounds → STOP and wait for the human.
+2. IMPLEMENT — only the agreed plan. If reality differs from the plan, stop and report.
 3. TEST — run `pytest -q`. Print key numbers (shapes, date ranges, base rates).
 4. REVIEW — invoke the `reviewer` subagent (ML validity), then run `code-review-harness` on the diff
    (runtime bugs). Fix FIX FIRST / high-severity issues, or explain why not. Never auto-commit.
@@ -26,6 +30,8 @@ Then, for each milestone (implementation chat):
    - Key numbers
    - Reviewer + harness verdicts, and what was fixed
    - Assumptions I made that you should check
+   - Plan consensus: rounds, Codex's final verdict, PROVISIONAL decisions to ratify
+     (from `reviews/<plan-name>-consensus.md`)
    - Proposed DECISIONS.md entry
 6. Wait. Do not start the next milestone.
 

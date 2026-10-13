@@ -74,11 +74,18 @@ def _naive(ts):
     return np.datetime64(pd.Timestamp(ts).tz_convert("UTC").tz_localize(None), "ns")
 
 
-def detect_gaps(alerts, min_hours=24):
-    """Runs of >= min_hours consecutive UTC hours with zero alert starts nationally: [first empty, first non-empty)."""
+def detect_gaps(alerts, min_hours=24, start=None, end=None):
+    """Runs of >= min_hours consecutive UTC hours with zero alert starts nationally: [first empty, first non-empty).
+    With start/end, only alerts starting in [start, end) count and the scanned range is [floor(start), end)
+    (API coverage, M4 plan §5.2); otherwise the range is first..last start (official)."""
+    if start is not None:
+        alerts = alerts[(alerts["started_at"] >= start) & (alerts["started_at"] < end)]
     hours = alerts["started_at"].dt.floor("h")
     counts = hours.value_counts()
-    full = pd.date_range(hours.min(), hours.max(), freq="h")
+    if start is None:
+        full = pd.date_range(hours.min(), hours.max(), freq="h")
+    else:
+        full = pd.date_range(start.floor("h"), end, freq="h", inclusive="left")
     empty = ~full.isin(counts.index)
     gaps, i = [], 0
     while i < len(full):
@@ -143,16 +150,17 @@ def build_grid(alerts, grid_start, grid_end, H=pd.Timedelta(hours=1), target_lev
     return pd.concat(parts, ignore_index=True)
 
 
-def base_rate_table(grid, before):
-    g = grid[(grid["mask"] == 0) & (grid["t"] < before)]
+def base_rate_table(grid, before, H):
+    """Labels known before the cut-off only: rows with t + H <= before (label window (t, t+H] ends by then)."""
+    g = grid[(grid["mask"] == 0) & (grid["t"] + H <= before)]
     q = g["t"].dt.tz_localize(None).dt.to_period("Q")
     by_q = g.groupby(q)["y"].agg(["mean", "size"]).rename(columns={"mean": "base_rate", "size": "rows"})
     by_g = g.groupby("group")["y"].agg(["mean", "size"]).rename(columns={"mean": "base_rate", "size": "rows"})
     return by_q, by_g, g
 
 
-def check_base_rate(grid, before, ratio=0.5):
-    by_q, _, g = base_rate_table(grid, before)
+def check_base_rate(grid, before, H, ratio=0.5):
+    by_q, _, g = base_rate_table(grid, before, H)
     ref = g.loc[g["t"].dt.year == 2024, "y"].mean()
     late = by_q[by_q.index >= pd.Period("2025Q1", "Q")]
     bad = late[late["base_rate"] < ratio * ref]

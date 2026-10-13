@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "live-dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--env-file=.env", "netlify/live/dev_server.mjs"],
+      "port": 8888
+    }
+  ]
+}

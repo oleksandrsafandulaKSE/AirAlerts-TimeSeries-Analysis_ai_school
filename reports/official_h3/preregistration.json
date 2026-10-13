@@ -1,0 +1,76 @@
+{
+  "H": "3h",
+  "baselines": [
+    "climatology",
+    "recent_rate",
+    "persistence_raw",
+    "persistence_calibrated"
+  ],
+  "best_iteration": 203,
+  "calibration_decision": "platt",
+  "calibration_rule": "Platt on validation iff validation ECE > 0.02",
+  "code_fingerprint": "e809e0f9f3d8c7868aaa0a81f6e564b36a9bc35f8211208d5d1a7784bd77752d",
+  "config": "official_h3",
+  "dates": {
+    "test": [
+      "2026-07-27 00:00:00+00:00",
+      "2026-09-07 00:00:00+00:00"
+    ],
+    "train": [
+      "2022-03-23 00:00:00+00:00",
+      "2026-06-29 00:00:00+00:00"
+    ],
+    "val": [
+      "2026-06-29 00:00:00+00:00",
+      "2026-07-27 00:00:00+00:00"
+    ]
+  },
+  "early_stopping_rounds": 100,
+  "eligibility": "t in [test start, test end), t + H <= test end, mask == 0, label known, all features known (D-024)",
+  "features": [
+    "minutes_since_last_start",
+    "minutes_since_last_end",
+    "onsets_last_24h",
+    "onsets_last_7d",
+    "neighbors_active_at_t",
+    "national_active_count_at_t",
+    "hour_kyiv",
+    "weekday_kyiv",
+    "unit_code"
+  ],
+  "headline_predictor": "model (raw LightGBM, or raw -> Platt if calibration_decision == 'platt')",
+  "lightgbm_params": {
+    "bagging_fraction": 1.0,
+    "bagging_freq": 0,
+    "deterministic": true,
+    "feature_fraction": 1.0,
+    "force_row_wise": true,
+    "learning_rate": 0.05,
+    "metric": "binary_logloss",
+    "min_data_in_leaf": 100,
+    "num_leaves": 31,
+    "num_threads": 1,
+    "objective": "binary",
+    "seed": 20261013,
+    "verbose": -1
+  },
+  "max_rounds": 2000,
+  "primary_metric": "Brier skill vs the rolling recent-rate baseline (D-021)",
+  "reference": "recent_rate",
+  "secondary_metrics": [
+    "brier",
+    "roc_auc_pooled",
+    "roc_auc_within_unit_mean",
+    "pr_auc",
+    "pr_auc_over_base",
+    "reliability (overall)",
+    "calibration_in_the_large"
+  ],
+  "sha256": {
+    "baseline_fit.json": "7b8a602aa882849908c7b63969402b4c375cd573fa669c7223c0078335f279ac",
+    "calibrator.json": "4d4b87b42dfd754d32a1921b48ef88c933774251fd9a97f72cfa9abc1db072a1",
+    "data": "b396f87696243069eec0219880e87dcd642b20beb0a7bae0d0e1f61e1ed20ec4",
+    "model.txt": "592729b332d950914de9ca060e8e183f15c0869e4d14acc8025fb9a896cf06fb",
+    "val_predictions.csv": "87d6068e2b3a639a1a8a71cd3b5dbb7ff4202e645ea8a5f7cd77f92c0c29facd"
+  }
+}

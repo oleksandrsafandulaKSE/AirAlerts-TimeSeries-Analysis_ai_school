@@ -1,0 +1,64 @@
+{
+  "recipe": "M7 V2 (offset model), plans/M8.md \u00a72",
+  "features": [
+    "minutes_since_last_start",
+    "minutes_since_last_end",
+    "onsets_last_24h",
+    "onsets_last_7d",
+    "neighbors_active_at_t",
+    "national_active_count_at_t",
+    "hour_kyiv",
+    "weekday_kyiv",
+    "unit_code"
+  ],
+  "unit_codes": [
+    "kyiv_city",
+    "chernihivska",
+    "sumska",
+    "kharkivska",
+    "donetska",
+    "dnipropetrovska",
+    "zaporizka",
+    "khersonska",
+    "mykolaivska",
+    "kyivska",
+    "zhytomyrska",
+    "vinnytska",
+    "cherkaska",
+    "poltavska",
+    "kirovohradska",
+    "odeska",
+    "khmelnytska",
+    "rivnenska",
+    "volynska",
+    "lvivska",
+    "ternopilska",
+    "ivano_frankivska",
+    "zakarpatska",
+    "chernivetska"
+  ],
+  "categorical": [
+    "unit_code"
+  ],
+  "best_iteration": 18,
+  "offset": {
+    "alpha": 10.0,
+    "window_hours": 336,
+    "h_hours": 1,
+    "clip": 0.0001,
+    "prior": "expanding eligible-label rate of the unit up to tau - H; national pooled fallback"
+  },
+  "standing_cap_hours": 24,
+  "train": [
+    "2022-03-23 00:00:00+00:00",
+    "2026-06-29 00:00:00+00:00"
+  ],
+  "val": [
+    "2026-06-29 00:00:00+00:00",
+    "2026-07-27 00:00:00+00:00"
+  ],
+  "fit_rows": 742114,
+  "early_stopping_rows": 11160,
+  "sha256_model_json": "be2159003372065bd27ba2557db47d0fc1dace73c37ad69ca07f39d0ac0e3533",
+  "trained_on": "official data only (no API data)"
+}

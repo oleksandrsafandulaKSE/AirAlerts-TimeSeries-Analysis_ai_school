@@ -1,0 +1,10 @@
+[codex] I’ll check each prior finding against the updated plan and builder’s evidence, then check the provisional decisions 
+[codex] > 'cat plans/M8.md reviews/M8-codex-r2.md reviews/M8-claude-r2.md CLAUDE.md DECISIONS.md .claude/skill
+[codex] > 'wc -l reviews/M8-codex-r2.md reviews/M8-claude-r2.md CLAUDE.md DECISIONS.md; cat reviews/M8-claude-
+[codex] The plan fixes the failure-status delivery, immature-label witness, and earlier wording issues. I’m applying the leaka
+[codex] > "cat src/grid.py src/features.py; sed -n '150,290p' src/data.py; cat src/regions.py; rg -n 'D-030|D-
+[codex] > "nl -ba plans/M8.md | sed -n '26,80p'; sed -n '42,85p' reviews/PROPOSED-DECISIONS-M4-M5.md; sed -n '
+[codex] ## PREVIOUS ITEMS
+Reading prompt from stdin...
+session_id=01a134d2-b0cc-7f50-9f30-4508868ad669
+output_path=reviews/M8-codex-r3.md

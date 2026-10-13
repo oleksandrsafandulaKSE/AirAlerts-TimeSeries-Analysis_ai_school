@@ -1,0 +1,146 @@
+{
+  "config": "new_regime",
+  "source": "api",
+  "dump": "data/raw/alerts_in_ua/2026-10-12T1645Z",
+  "H": "1h",
+  "api_alert_types": [
+    "air_raid"
+  ],
+  "history_start": "2026-09-12 17:00:43+00:00",
+  "coverage_end": "2026-10-12 16:45:36+00:00",
+  "grid": [
+    "2026-09-13 00:00:00+00:00",
+    "2026-10-12 16:00:00+00:00"
+  ],
+  "grid_shape": [
+    17088,
+    7
+  ],
+  "loader": {
+    "records_raw": 16739,
+    "excluded_uid_records": {
+      "16": 1,
+      "29": 1
+    },
+    "alert_types": {
+      "air_raid": 16448,
+      "artillery_shelling": 288,
+      "urban_fights": 1
+    },
+    "alert_types_dropped": {
+      "artillery_shelling": 288,
+      "urban_fights": 1
+    },
+    "duplicate_ids_dropped": 0,
+    "open_alerts": 32,
+    "open_by_unit": {
+      "kharkivska": 7,
+      "dnipropetrovska": 7,
+      "zaporizka": 7,
+      "kirovohradska": 5,
+      "odeska": 3,
+      "poltavska": 1,
+      "mykolaivska": 1,
+      "cherkaska": 1
+    },
+    "open_started_in_window": 10,
+    "alerts": 16448
+  },
+  "alert_counts_in_coverage": {
+    "missing_finished_at": 31,
+    "zero_duration": 0,
+    "exactly_30min_total": 0,
+    "exactly_30min_by_level": {},
+    "over_24h_by_unit": {
+      "donetska": 80,
+      "dnipropetrovska": 16,
+      "chernihivska": 3,
+      "kyivska": 1
+    },
+    "over_24h_total": 100,
+    "rows_by_level": {
+      "raion": 14324,
+      "hromada": 931,
+      "city": 929,
+      "oblast": 219
+    },
+    "rows_by_unit": {
+      "kharkivska": 2388,
+      "dnipropetrovska": 2008,
+      "kyivska": 1480,
+      "zaporizka": 1182,
+      "kirovohradska": 1107,
+      "sumska": 1058,
+      "mykolaivska": 952,
+      "odeska": 877,
+      "poltavska": 777,
+      "chernihivska": 746,
+      "cherkaska": 632,
+      "donetska": 545,
+      "vinnytska": 533,
+      "zhytomyrska": 523,
+      "khersonska": 371,
+      "rivnenska": 327,
+      "kyiv_city": 218,
+      "khmelnytska": 211,
+      "ternopilska": 153,
+      "volynska": 145,
+      "chernivetska": 54,
+      "ivano_frankivska": 49,
+      "lvivska": 49,
+      "zakarpatska": 18
+    }
+  },
+  "eligibility": {
+    "in_range": 17088,
+    "eligible": 7146,
+    "excluded_exclusive": {
+      "purge": 0,
+      "masked": 7375,
+      "y_nan": 0,
+      "feature_nan": 2567
+    },
+    "excluded_overlapping": {
+      "purge": 0,
+      "masked": 7375,
+      "y_nan": 432,
+      "feature_nan": 4464
+    }
+  },
+  "scored_range": [
+    "2026-09-20 18:00:00+00:00",
+    "2026-10-12 15:00:00+00:00"
+  ],
+  "nan_reasons": [],
+  "frozen_predictor": {
+    "baseline_fit.json": "4cd8070c6c42b1e477accde812e56e5cee5da2c1a18eaaa5407c464a2a2084b5",
+    "calibrator.json": "c38f2373f5842a4b1a73cb1a46e9091134513f42e4b935034ec9b715bfe2c337",
+    "data": "b396f87696243069eec0219880e87dcd642b20beb0a7bae0d0e1f61e1ed20ec4",
+    "model.txt": "b8c2f9e7d2c5f3964d88252a050a3ea96c6b20920db9e343b059c222d6424c1c",
+    "val_predictions.csv": "2ef10f58cf1260fc73ae8a749ed5060b24915b32a0890ad6fb03264385a6bb5a"
+  },
+  "git_commit": "8db3861a7656315b5b3af70ded5b93de6451fe7e",
+  "git_dirty": true,
+  "python": "3.13.5",
+  "packages": {
+    "pandas": "3.0.6",
+    "numpy": "2.5.4",
+    "scikit-learn": "1.9.1",
+    "lightgbm": "4.7.0",
+    "matplotlib": "3.11.2",
+    "pytest": "9.1.1",
+    "requests": "2.34.2",
+    "streamlit": "1.65.0"
+  },
+  "features": [
+    "minutes_since_last_start",
+    "minutes_since_last_end",
+    "onsets_last_24h",
+    "onsets_last_7d",
+    "neighbors_active_at_t",
+    "national_active_count_at_t",
+    "hour_kyiv",
+    "weekday_kyiv",
+    "unit_code"
+  ]
+}

@@ -1,0 +1,14 @@
+[codex] I’ll read the consultation and priority files first, then check the relevant code and answer in the requested format.
+[codex] > 'cat CLAUDE.md'
+[codex] > 'cat plans/M4.md'
+[codex] > 'cat /private/tmp/claude-501/codex-artillery.md'
+[codex] > 'cat DECISIONS.md'
+[codex] > "rg -n 'alert_type|def load_api|before_after|regime_summary' src/data.py src/evaluate.py scripts/run
+[codex] > "sed -n '120,320p' DECISIONS.md"
+[codex] > "rg --files -g AGENTS.md -g '*official*' -g '*api*' -g '*review*' -g '*consensus*' reviews src tests
+[codex] > "sed -n '70,225p' src/data.py
+sed -n '1,140p' tests/test_api_loader.py"
+[codex] **C.** A is the strongest empirical candidate: the Nikopol evidence suggests that excluding artillery would make the API
+Reading prompt from stdin...
+session_id=01a1328d-924a-76e0-bc15-d49f203c5bd0
+output_path=reviews/M4-codex-artillery.md

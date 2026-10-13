@@ -46,7 +46,7 @@
     938304,
     7
   ],
-  "git_commit": null,
+  "git_commit": "8db3861a7656315b5b3af70ded5b93de6451fe7e",
   "git_dirty": true,
   "python": "3.13.5",
   "packages": {
@@ -69,5 +69,19 @@
     "hour_kyiv",
     "weekday_kyiv",
     "unit_code"
-  ]
+  ],
+  "m3": {
+    "split": "val",
+    "baselines": [
+      "climatology",
+      "recent_rate",
+      "persistence_raw",
+      "persistence_calibrated"
+    ],
+    "recent_rate": "(k + 10.0*p_unit)/(n + 10.0), window 14 days 00:00:00, s <= t - H"
+  },
+  "m4": {
+    "best_iteration": 208,
+    "calibration": "none"
+  }
 }

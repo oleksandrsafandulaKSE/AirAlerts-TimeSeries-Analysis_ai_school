@@ -1,0 +1,42 @@
+{
+  "plan": "plans/M7.md",
+  "posthoc": true,
+  "test_rows_identical_keys": 13116,
+  "nan_reasons": [],
+  "rows_dropped_missing_m7_input": {
+    "train": [
+      6727,
+      748841
+    ],
+    "validation": [
+      0,
+      11160
+    ]
+  },
+  "code_fingerprint_headline": "e809e0f9f3d8c7868aaa0a81f6e564b36a9bc35f8211208d5d1a7784bd77752d",
+  "python": "3.13.5",
+  "packages": {
+    "pandas": "3.0.6",
+    "numpy": "2.5.4",
+    "scikit-learn": "1.9.1",
+    "lightgbm": "4.7.0",
+    "matplotlib": "3.11.2",
+    "pytest": "9.1.1",
+    "requests": "2.34.2",
+    "streamlit": "1.65.0"
+  },
+  "fold_cuts": [
+    "2025-07-01",
+    "2025-10-01",
+    "2026-01-01",
+    "2026-04-01"
+  ],
+  "weekly_cuts": [
+    "2026-07-27",
+    "2026-08-03",
+    "2026-08-10",
+    "2026-08-17",
+    "2026-08-24",
+    "2026-08-31"
+  ]
+}

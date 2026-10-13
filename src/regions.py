@@ -30,6 +30,9 @@ _UNITS = [
 
 # Excluded on purpose (D-008): official name -> reason. Crimea/Sevastopol are not in the official file.
 EXCLUDED = {"Luhanska oblast": "permanent alert since 2022-04-04 (D-008)"}
+# alerts.in.ua UIDs that exist but are not forecast units (D-008), and UIDs the API answers with 404
+EXCLUDED_API_UIDS = {16: "Luhanska (D-008)", 29: "Crimea (not in the official data)", 30: "Sevastopol (not in the official data)"}
+API_404_UIDS = {6, 7}
 
 # Shared land borders between the 24 units (hard-coded, D-017). To be checked by the human before M2.
 _BORDERS = [
@@ -61,7 +64,36 @@ _BORDERS = [
     ("chernivetska", "zakarpatska"),
 ]
 
-UNITS = {k: {"official_name": n, "api_uid": u, "group": g} for k, n, u, g in _UNITS}
+# oblast name as written by the alerts.in.ua API (`location_oblast`), used only to check the file identity
+_API_OBLAST_NAMES = {
+    "kyiv_city": "м. Київ",
+    "chernihivska": "Чернігівська область",
+    "sumska": "Сумська область",
+    "kharkivska": "Харківська область",
+    "donetska": "Донецька область",
+    "dnipropetrovska": "Дніпропетровська область",
+    "zaporizka": "Запорізька область",
+    "khersonska": "Херсонська область",
+    "mykolaivska": "Миколаївська область",
+    "kyivska": "Київська область",
+    "zhytomyrska": "Житомирська область",
+    "vinnytska": "Вінницька область",
+    "cherkaska": "Черкаська область",
+    "poltavska": "Полтавська область",
+    "kirovohradska": "Кіровоградська область",
+    "odeska": "Одеська область",
+    "khmelnytska": "Хмельницька область",
+    "rivnenska": "Рівненська область",
+    "volynska": "Волинська область",
+    "lvivska": "Львівська область",
+    "ternopilska": "Тернопільська область",
+    "ivano_frankivska": "Івано-Франківська область",
+    "zakarpatska": "Закарпатська область",
+    "chernivetska": "Чернівецька область",
+}
+
+UNITS = {k: {"official_name": n, "api_uid": u, "group": g, "api_oblast_name": _API_OBLAST_NAMES[k]}
+         for k, n, u, g in _UNITS}
 NEIGHBOURS = {k: set() for k in UNITS}
 for _a, _b in _BORDERS:
     NEIGHBOURS[_a].add(_b)
@@ -75,6 +107,14 @@ def units():
 
 def group_of(key):
     return UNITS[key]["group"]
+
+
+def unit_from_api_uid(uid):
+    """Exact lookup by alerts.in.ua UID; unknown or excluded UIDs raise KeyError."""
+    for k, v in UNITS.items():
+        if v["api_uid"] == uid:
+            return k
+    raise KeyError(f"unknown api uid: {uid!r}")
 
 
 def unit_from_official(name):

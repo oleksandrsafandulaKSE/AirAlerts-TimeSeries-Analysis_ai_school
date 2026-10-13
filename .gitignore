@@ -11,3 +11,9 @@ __pycache__/
 .DS_Store
 .env
 !reports/**/*.csv
+
+# M8: the live config is committed; the seed state (API data, built by scripts/build_live_seed.py) is not
+!netlify/live/data/
+netlify/live/data/seed_state.json
+node_modules/
+.netlify/

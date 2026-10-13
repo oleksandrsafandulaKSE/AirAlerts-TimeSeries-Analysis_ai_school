@@ -25,7 +25,11 @@ Mark the source honestly (builder / reviewer subagent / supervisor chat / me).
 ## D-003 — Masking applied to one region only (v1 bug)
 - `return` inside `for region in unique_regions` in clean_grid.py.
 - Evidence: 37,403 hours × 25 regions = 935,075; matrix had 933,077 → only 1,998 rows masked.
-- Decision: regression test asserting no masked hour has active_at_t == 1.
+- Decision: regression test asserting no UNMASKED (eligible) hour has active_at_t == 1, checked for every unit.
+  Gap-masked hours may be inactive.
+- **Corrected (2026-10-13):** the original wording ("no masked hour has active_at_t == 1") was reversed
+  (flagged by Codex, M1/M3 reviews). Enforced by `scripts/run_all.py` (raises on any unmasked active row) and
+  `tests/test_grid.py::test_brute_force_matches` (exact mask check per unit).
 
 ## D-004 — Stale features via merge_asof on onset events (v1 bug)
 - Features were computed at the region's last alert start and carried forward, so the
@@ -220,4 +224,78 @@ Mark the source honestly (builder / reviewer subagent / supervisor chat / me).
   alert, gap edges, DST, cut-offs, times off the hour). The negative control is caught at exactly the pinned
   pairs. The reviewer's mutation tests (look-ahead from 1 minute to 1 hour) all fail the test.
 - Purge rule for M3: a training row is kept if t+H ≤ cut-off.
-- Open: how NaN `onsets_last_7d` is handled on test rows from 09-04 to 09-07.
+- Open: how NaN `onsets_last_7d` is handled on test rows from 09-04 to 09-07. **Resolved by D-024.**
+
+## D-024 — Rows with missing features in the test period
+- Headline scoring (model and all baselines) uses only test rows where every model feature is known at t.
+  After the gap, `onsets_last_7d` is missing from 09-04 00:00 to the end of the test, which removes 72 test
+  hours on top of the 145 gap hours (217 of 1,008 test hours unscored; 791 scored). The excluded row count
+  is printed.
+- Verified by builder (2026-10-13, feature availability only, no labels): gap hours 145
+  (2026-08-28 23:00 → 2026-09-03 23:00); non-gap test hours with any missing feature 72
+  (2026-09-04 00:00 → 09-06 23:00), all 24 units at once (0 hours where only some units are missing).
+  Missing counts on non-gap test rows: `onsets_last_7d` 1,728 (= 72 × 24), `onsets_last_24h` 576,
+  `minutes_since_last_start` 470, `minutes_since_last_end` 459.
+- Counts of missing features in the test period may be printed: they describe which inputs exist, not labels
+  or results. This is an exception to decision 4 (M2).
+- Optional extra: score the 09-04 → 09-07 rows separately, labelled "feature missing after the gap"; never
+  part of the headline.
+- The same rule applies at every cut-off in M3 (validation) and M4 (test).
+
+## D-025 — M3 baselines and evaluation (Codex M3 review → me)
+- Recent rate = `(k + 10·p_unit)/(n + 10)` over unmasked rows with known labels, s in [t−14d, t−H]. Amends
+  D-021/CLAUDE.md. Reason: pure k/n on ~10 rows gives 0/1 rates (Dnipropetrovska has 14 unmasked rows in the
+  6 weeks before the validation end). Measured on validation: history n min 2, median 324, 13 rows with n < 10, none with n = 0.
+- Climatology: unit × Kyiv hour × Kyiv weekday. Calibrated persistence: unit × `minutes_since_last_end` bins
+  [0,60), [60,180), [180,720), [720,∞). Both shrunk toward the unit train rate (α = 10), fitted on eligible
+  train rows only (a test flips validation labels and asserts they don't change).
+- Eligible rows: in range, t+H ≤ cut-off, unmasked, label known, all features known (D-024). An onset exactly at
+  the test start appears in no test label. Train 748,841 eligible (base rate 0.0903); validation 11,160 (0.1179).
+- Test-label isolation: every y with t ≥ 2026-07-27 is blanked before M3 runs; test dates need `allow_test=True` (M4).
+- Metrics: zero denominator → NaN with a printed reason. Within-unit AUC needs ≥ 10 positives and ≥ 10 negatives
+  per unit. Reliability: 10 fixed-width bins. Outputs `metrics_validation.*`; `metrics.*` reserved for M4
+  (approved D-017 exception).
+- Validation results (overall, measured): recent rate Brier 0.0775; Brier skill vs recent rate: calibrated
+  persistence −0.143, climatology −0.214, raw persistence −0.612. Recent rate has the lowest Brier overall, in
+  frontline and in rear. Kyiv City (625 rows) is the exception: calibrated persistence beats recent rate (skill +0.019).
+- Pooled vs within-unit AUC (measured): pooled ROC-AUC is high (recent rate 0.883, calibrated persistence 0.881,
+  climatology 0.850), but mean within-unit AUC is about 0.5 for every baseline (0.491–0.588). So pooled AUC
+  mostly reflects differences between units. **M4 must report within-unit AUC next to pooled AUC and must not
+  treat pooled AUC as the ranking result.**
+- Within-unit AUC covers 14 of 24 units. Excluded (validation eligible rows: positives / negatives):
+  Dnipropetrovska 10 / 0 and Kharkivska 48 / 5 (fewer than 10 NEGATIVES), and 8 western rear units with fewer
+  than 10 positives: Chernivetska 3, Ivano-Frankivska 1, Khmelnytska 5, Lvivska 1, Rivnenska 6, Ternopilska 3,
+  Volynska 3, Zakarpatska 0. Per-group validation results for frontline are low-n.
+- Test split availability (counts only, no labels): 24,192 rows; masked 9,877. `feature_nan` = 5,184 is an
+  OVERLAPPING count: 3,456 gap-zone rows (144 h × 24, also masked) + the 1,728 rows of D-024 (72 h × 24).
+  Exclusive count (purge → masked → feature NaN) = 1,199: of D-024's 1,728 rows, 529 are already masked by an
+  active alert, so 1,199 unmasked rows are dropped only for a missing feature. Available test rows: 13,116.
+- Leakage proof: the real-data truncation test covers recent rate and raw persistence at 6 times; its negative
+  control (a window that reads row t) is caught. The reviewer's 12 mutations all make the tests fail.
+
+## D-026 — Plans approved by Claude–Codex consensus (me, 2026-10-13)
+- Context: the human is not available to approve every milestone plan; each plan was waiting on one Codex
+  round + a human decision.
+- Decision (me): skill `codex-plan-review` becomes a consensus loop. Codex reviews → Claude judges each item with
+  evidence, edits the plan, answers → Codex re-reviews (RESOLVED / ACCEPTED / OPEN) and ends with
+  `VERDICT: AGREE` or `CHANGES REQUIRED`. **Max 5 rounds.** Consensus = Codex AGREE + no open disagreement +
+  no escalation → the plan counts as approved and implementation starts.
+- Limits: the loop decides design questions inside the rules only. Rule changes (CLAUDE.md, existing D-entries:
+  target, mask, splits, evaluation protocol, baselines, sources, dependencies, scope, milestone order) and
+  deadlock after 5 rounds go back to me. Never by consensus: scoring the final test before M4, training/tuning on
+  API data, mixing sources, committing, deleting data, secrets. Consensus decisions are PROVISIONAL until I ratify
+  them; each run writes `reviews/<plan>-consensus.md`. The loop never edits DECISIONS.md or CLAUDE.md.
+- Unchanged: one milestone per cycle, reviewer + harness review, I get the summary and decide on the next
+  milestone; no commits by Claude.
+- Updated: CLAUDE.md ("The human is the architect", "Workflow", "Planning has two levels"), skills
+  `codex-plan-review` and `milestone-protocol`. Amends D-019.
+
+## D-027 — Open API alerts are kept with the causal 24h cap (me, 2026-10-13; M4 consensus-loop escalation)
+- Context: CLAUDE.md's API merge rule said "closed alerts only". The 2026-10-12T1645Z dump has 41 open alerts; 39 belong
+  to the 24 units and 12 started inside the API window (Dnipropetrovska 6, Poltavska 1, Kharkivska 5).
+- Found by: Codex (M4 rounds 1–2). "Closed only" decides whether an alert exists from its future closure: dropping the 12
+  erases real onsets and masks, and the leakage audit (hide ends > t) makes every ongoing alert look open, so a closed-only
+  loader fails the truncation test by construction. Claude's within-rules alternative (missing-data zones around open
+  starts) was rejected by Codex as still depending on future closure.
+- Decision (me): option A. Dedup by `id` keeping the latest `updated_at`; keep open alerts with an unknown end; the D-020
+  24h cap handles them exactly like truncated official alerts. Amends the CLAUDE.md API merge rule (updated).

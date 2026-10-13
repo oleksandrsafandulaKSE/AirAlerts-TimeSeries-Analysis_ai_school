@@ -1,0 +1,8 @@
+[codex] I’ll read the four priority files and check the plan for contradictions, leakage risks, ineffective tests, and deadlin
+[codex] > 'cat plans/M3b-H3.md CLAUDE.md DECISIONS.md .claude/skills/ts-leakage-audit/SKILL.md'
+[codex] I’m applying the leakage-audit skill. The main concerns are the undefined gap boundary, tests that may miss leaked neg
+[codex] > 'nl -ba plans/M3b-H3.md'
+[codex] ## BLOCKERS
+Reading prompt from stdin...
+session_id=01a13230-1b0a-7f02-84da-312c57d0fa8e
+output_path=reviews/M3b-H3-codex.md

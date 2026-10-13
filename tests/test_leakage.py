@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src import config, data, features as F, grid, regions
+from src import config, data, evaluate, features as F, grid, regions
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data" / "official_data_en.csv"
@@ -193,3 +193,181 @@ def test_real_data_negative_control_pinned_witnesses(real):
                      (t_b, "kyiv_city", "onsets_centered_3h")}
     # the real features are clean at the same witnesses
     assert truncation_check(real_features, real, [t_a, t_b]) == []
+
+
+# ---------------- M3: time-dependent baselines (recent rate, raw persistence) ----------------
+from src import baselines as B  # noqa: E402
+
+P_UNIT = pd.Series(0.1, index=regions.units())  # frozen constant: causality does not depend on its value
+
+
+def baseline_features(alerts, times, H_hist=None, H=None):
+    """recent_rate and persistence_raw at each t, rebuilt from the given (possibly truncated) alerts."""
+    H = CFG.H if H is None else H
+    out = []
+    for t in pd.DatetimeIndex(times):
+        g = grid.build_grid(alerts, (t - CFG.recent_window - pd.Timedelta(days=1)).floor("h"), t + H, H,
+                            approved_gaps=CFG.approved_gaps)
+        score = g[g["t"] == t].reset_index(drop=True)
+        rr = B.recent_rate(g, score, P_UNIT, CFG.shrink_alpha, CFG.recent_window,
+                           H if H_hist is None else H_hist)
+        out.append(pd.DataFrame({"unit": score["unit"], "t": score["t"], "recent_rate": rr,
+                                 "persistence_raw": B.persistence_raw(alerts, score, H)}))
+    return pd.concat(out, ignore_index=True)
+
+
+def leaky_recent_rate(alerts, times, H=None, H_hist=pd.Timedelta(0)):
+    """Negative control: history window reaches past s <= t - H, i.e. reads labels not yet known at t."""
+    return baseline_features(alerts, times, H_hist=H_hist, H=H).rename(
+        columns={"recent_rate": "recent_rate_leaky"})[["unit", "t", "recent_rate_leaky"]]
+
+
+def baseline_times(H=None):
+    """Val start, mid-validation, the H-dependent edges before the cut-off (C - H ... C), and the
+    H-dependent gap-mask edges, so each horizon is checked at its own boundaries."""
+    import dataclasses
+    ts = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
+    c = CFG if H is None else dataclasses.replace(CFG, H=H)
+    C = c.test[0]
+    edges = [C - k * pd.Timedelta(hours=1) for k in range(int(c.H / pd.Timedelta(hours=1)), 0, -1)]
+    return pd.DatetimeIndex([c.val[0], ts("2026-07-10 13:00"), *edges, C,
+                             *[x for iv in config.gap_label_mask_interval(c) for x in iv]])
+
+
+@pytest.mark.parametrize("hours", [1, 3])
+def test_baselines_truncation_invariant(real, hours):
+    ts = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
+    H = pd.Timedelta(hours=hours)
+    times = baseline_times(H).append(pd.DatetimeIndex([ts("2025-03-30 00:00"), ts("2025-03-30 01:00"),
+                                                       ts("2025-10-26 00:00"), ts("2025-10-26 01:00")]))
+    assert len(times) == 9 + hours
+    if hours == 3:  # the H = 3 boundaries are really visited
+        assert {CFG.test[0] - pd.Timedelta(hours=k) for k in (1, 2, 3)} <= set(times)
+        assert ts("2026-08-28 21:00") in set(times)
+    fn = lambda al, t: baseline_features(al, t, H=H)  # noqa: E731
+    assert truncation_check(fn, real, times) == []
+
+
+def test_baselines_negative_control_h3(real):
+    """At H = 3 a history window ending at t - 1h reads labels of rows t-2h, t-1h whose windows reach past t."""
+    H3 = pd.Timedelta(hours=3)
+    _, _, on = grid.unit_intervals(real[real.unit == "kyiv_city"])["kyiv_city"]
+    on = pd.to_datetime(on).tz_localize("UTC")
+    g = grid.build_grid(real, CFG.val[0], CFG.test[0], H3, unit_list=regions.units(),
+                        approved_gaps=CFG.approved_gaps).set_index(["unit", "t"])
+    t_w = None
+    for o in on[(on >= CFG.val[0] + pd.Timedelta(days=1)) & (on < CFG.test[0]) & (on.minute != 0)]:
+        s = o.floor("h") - pd.Timedelta(hours=1)  # row s: o in (s, s+3h]; no onset in (s, o.floor("h")]
+        if g.loc[("kyiv_city", s), "mask"] == 0 and not ((on > s) & (on <= o.floor("h"))).any():
+            t_w = o.floor("h")
+            break
+    assert t_w is not None
+    leaky = lambda al, t: leaky_recent_rate(al, t, H=H3, H_hist=pd.Timedelta(hours=1))  # noqa: E731
+    assert set(truncation_check(leaky, real, [t_w], units=["kyiv_city"])) == {(t_w, "kyiv_city", "recent_rate_leaky")}
+    clean = lambda al, t: baseline_features(al, t, H=H3)  # noqa: E731
+    assert truncation_check(clean, real, [t_w]) == []
+
+
+def test_h3_real_gap_rows_and_purge(real):
+    from scripts import run_all
+    c3 = config.official_h3()
+    g = grid.build_grid(real, c3.grid_start, c3.grid_end, c3.H, approved_gaps=c3.approved_gaps,
+                        coverage_end=c3.coverage_end)
+    assert run_all.check_gap_rows(g, c3) == 147
+    for a, b in (c3.train, c3.val):
+        _, counts = evaluate.eligibility(g, a, b, c3.H, [])
+        assert counts["excluded_exclusive"]["purge"] == 2 * 24
+
+
+def test_baselines_negative_control(real):
+    _, _, on = grid.unit_intervals(real[real.unit == "kyiv_city"])["kyiv_city"]
+    on = pd.to_datetime(on).tz_localize("UTC")
+    cand = on[(on >= CFG.val[0]) & (on < CFG.test[0]) & (on.minute != 0)]
+    g = grid.build_grid(real, CFG.val[0], CFG.test[0], CFG.H, unit_list=regions.units(),
+                        approved_gaps=CFG.approved_gaps).set_index(["unit", "t"])
+    t_w = next(o.floor("h") for o in cand if g.loc[("kyiv_city", o.floor("h")), "mask"] == 0)
+    assert g.loc[("kyiv_city", t_w), "y"] == 1  # the label the leaky window reads early
+    found = set(truncation_check(leaky_recent_rate, real, [t_w], units=["kyiv_city"]))
+    assert found == {(t_w, "kyiv_city", "recent_rate_leaky")}
+    assert truncation_check(baseline_features, real, [t_w]) == []
+
+
+# ---------------- M4: model predictions and the API loader-to-predictor path ----------------
+from src import model as M  # noqa: E402
+
+NR = config.new_regime()
+
+
+@pytest.fixture(scope="module")
+def small_model(real):
+    """A tiny model on real March 2025 rows: only used to check that predictions inherit causality."""
+    t = pd.date_range(pd.Timestamp("2025-03-01", tz="UTC"), periods=24 * 20, freq="h")
+    f = real_features(real, t)
+    g = grid.build_grid(real, t[0], t[-1] + CFG.H, CFG.H, approved_gaps=CFG.approved_gaps)
+    df = f.drop(columns="active_at_t").merge(g[["unit", "t", "y", "mask"]], on=["unit", "t"])
+    df = df[(df["mask"] == 0) & df[F.FEATURES].notna().all(axis=1)]
+    cut = t[0] + pd.Timedelta(days=14)
+    booster, _ = M.train(df[df.t < cut], df[df.t >= cut], F.FEATURES)
+    return booster
+
+
+def with_prediction(booster, feats_df):
+    ok = feats_df[F.FEATURES].notna().all(axis=1)
+    p = np.full(len(feats_df), np.nan)
+    if ok.any():
+        p[ok.to_numpy()] = booster.predict(M._matrix(feats_df[ok], F.FEATURES))
+    return feats_df.assign(p_model=p)
+
+
+def test_model_predictions_truncation_invariant(real, small_model):
+    ts = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
+    times = [CFG.val[0], ts("2025-06-15 13:00"), ts("2025-10-26 01:00"), CFG.test[0] - CFG.H]
+    fn = lambda al, t: with_prediction(small_model, real_features(al, t))  # noqa: E731
+    assert truncation_check(fn, real, times) == []
+
+
+@pytest.fixture(scope="module")
+def api_records():
+    d = ROOT / NR.data_path
+    if not d.exists():
+        pytest.fail(f"{d} missing: the saved API dump is required (CLAUDE.md, D-007)")
+    records, _ = data.read_api_dump(d)
+    return records
+
+
+def api_state(records, t, booster):
+    """Loader -> grid -> features -> prediction at hour t, from (possibly truncated) raw records. Labels excluded."""
+    al = data.api_alerts(records, None, NR, require_all_units=False)
+    g = grid.build_grid(al, t, t + NR.H, NR.H, approved_gaps=config.mask_gaps(NR))
+    f = F.build_features(al, pd.DatetimeIndex([t]), config.uncertainty_zones(NR))
+    out = f.drop(columns="active_at_t").merge(g[["unit", "t", "active_at_t", "gap_mask", "mask"]], on=["unit", "t"])
+    return with_prediction(booster, out).set_index(["unit", "t"])
+
+
+def api_times():
+    ts = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
+    # dnipropetrovska has an alert open in the dump since 2026-10-11 08:33 (D-027)
+    return [ts("2026-09-25 13:00"), ts("2026-10-05 07:00"), ts("2026-10-11 12:00"), ts("2026-10-12 09:00")]
+
+
+def test_api_loader_to_predictor_truncation_invariant(api_records, small_model):
+    for t in api_times():
+        full = api_state(api_records, t, small_model)
+        cut = api_state(data.truncate_api_records(api_records, t), t, small_model)
+        pd.testing.assert_frame_equal(full, cut, check_dtype=False, obj=f"API state at {t}")
+    open_dn = [r for r in api_records if r["_file_uid"] == 9 and r["finished_at"] is None
+               and r["started_at"].startswith("2026-10-11T08:33")]
+    assert open_dn, "the open Dnipropetrovska alert used as a witness is missing"
+    assert api_state(api_records, api_times()[2], small_model).loc[("dnipropetrovska", api_times()[2]), "mask"] == 1
+
+
+def test_api_negative_control_final_duration(api_records):
+    al = data.api_alerts(api_records, None, NR, require_all_units=False)
+    long = al[(al.finished_at - al.started_at > pd.Timedelta(hours=2)) & (al.started_at >= pd.Timestamp("2026-09-25", tz="UTC"))]
+    w = long.iloc[0]
+    t_w = w.started_at.ceil("h")
+    assert t_w < w.finished_at
+    full = leaky_features(al, [t_w], [w.unit]).set_index("unit")
+    cut_al = data.api_alerts(data.truncate_api_records(api_records, t_w), None, NR, require_all_units=False)
+    cut = leaky_features(cut_al, [t_w], [w.unit]).set_index("unit")
+    assert full.loc[w.unit, "current_alert_final_minutes"] != cut.loc[w.unit, "current_alert_final_minutes"]

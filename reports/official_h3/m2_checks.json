@@ -1,0 +1,85 @@
+{
+  "feature_shape": [
+    938304,
+    12
+  ],
+  "joined_shape": [
+    938304,
+    16
+  ],
+  "uncertainty_zones": [
+    [
+      "2026-08-29 00:00:00+00:00",
+      "2026-09-04 00:00:00+00:00"
+    ]
+  ],
+  "nan_before_test": {
+    "minutes_since_last_start": 116,
+    "minutes_since_last_end": 117,
+    "onsets_last_24h": 0,
+    "onsets_last_7d": 0,
+    "neighbors_active_at_t": 0,
+    "national_active_count_at_t": 0,
+    "hour_kyiv": 0,
+    "weekday_kyiv": 0,
+    "unit_code": 0
+  },
+  "nan_rate_before_test": {
+    "minutes_since_last_start": 0.0001268991108310579,
+    "minutes_since_last_end": 0.00012799306868304977,
+    "onsets_last_24h": 0.0,
+    "onsets_last_7d": 0.0,
+    "neighbors_active_at_t": 0.0,
+    "national_active_count_at_t": 0.0,
+    "hour_kyiv": 0.0,
+    "weekday_kyiv": 0.0,
+    "unit_code": 0.0
+  },
+  "summary_before_test": {
+    "minutes_since_last_start": {
+      "min": 0.0,
+      "50%": 631.6833333333333,
+      "max": 170675.25
+    },
+    "minutes_since_last_end": {
+      "min": 0.0,
+      "50%": 632.6,
+      "max": 170716.45
+    },
+    "onsets_last_24h": {
+      "min": 0.0,
+      "50%": 1.0,
+      "max": 20.0
+    },
+    "onsets_last_7d": {
+      "min": 0.0,
+      "50%": 10.0,
+      "max": 88.0
+    },
+    "neighbors_active_at_t": {
+      "min": 0.0,
+      "50%": 0.0,
+      "max": 7.0
+    },
+    "national_active_count_at_t": {
+      "min": 0.0,
+      "50%": 3.0,
+      "max": 24.0
+    },
+    "hour_kyiv": {
+      "min": 0.0,
+      "50%": 11.5,
+      "max": 23.0
+    },
+    "weekday_kyiv": {
+      "min": 0.0,
+      "50%": 3.0,
+      "max": 6.0
+    },
+    "unit_code": {
+      "min": 0.0,
+      "50%": 11.5,
+      "max": 23.0
+    }
+  }
+}

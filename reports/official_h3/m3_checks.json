@@ -1,0 +1,93 @@
+{
+  "split": "val",
+  "split_counts": {
+    "train": {
+      "in_range": 897984,
+      "eligible": 748805,
+      "excluded_exclusive": {
+        "purge": 48,
+        "masked": 149015,
+        "y_nan": 0,
+        "feature_nan": 116
+      },
+      "excluded_overlapping": {
+        "purge": 48,
+        "masked": 149027,
+        "y_nan": 0,
+        "feature_nan": 117
+      },
+      "base_rate": 0.21640213406694667
+    },
+    "val": {
+      "in_range": 16128,
+      "eligible": 11123,
+      "excluded_exclusive": {
+        "purge": 48,
+        "masked": 4957,
+        "y_nan": 0,
+        "feature_nan": 0
+      },
+      "excluded_overlapping": {
+        "purge": 48,
+        "masked": 4968,
+        "y_nan": 48,
+        "feature_nan": 0
+      },
+      "base_rate": 0.23941382720489077
+    }
+  },
+  "test_availability_no_labels": {
+    "in_range": 24192,
+    "available": 13084,
+    "excluded_overlapping": {
+      "purge": 48,
+      "masked": 9909,
+      "feature_nan": 5184
+    },
+    "excluded_exclusive": {
+      "purge": 48,
+      "masked": 9901,
+      "feature_nan": 1159
+    }
+  },
+  "p_unit": {
+    "cherkaska": 0.24523028314497508,
+    "chernihivska": 0.2702129164603523,
+    "chernivetska": 0.06367555396908207,
+    "dnipropetrovska": 0.6340554156171284,
+    "donetska": 0.6383467922835352,
+    "ivano_frankivska": 0.06145419690538135,
+    "kharkivska": 0.59446984155164,
+    "khersonska": 0.32116122538843805,
+    "khmelnytska": 0.09098794102011695,
+    "kirovohradska": 0.30301256776737306,
+    "kyiv_city": 0.15009718728561627,
+    "kyivska": 0.2035677131142525,
+    "lvivska": 0.06100032869508053,
+    "mykolaivska": 0.33293496037237386,
+    "odeska": 0.23674755566026623,
+    "poltavska": 0.39089292305627327,
+    "rivnenska": 0.0794940781627049,
+    "sumska": 0.4062486752299801,
+    "ternopilska": 0.06880607695271647,
+    "vinnytska": 0.12668148654810762,
+    "volynska": 0.06630971993410215,
+    "zakarpatska": 0.05532042705403708,
+    "zaporizka": 0.5602687140115163,
+    "zhytomyrska": 0.13222254419008983
+  },
+  "recent_rate_history_n": {
+    "min": 2.0,
+    "median": 322.0,
+    "n_lt_10": 13,
+    "n_eq_0": 0,
+    "rows": 11123
+  },
+  "nan_reasons": [],
+  "baselines": [
+    "climatology",
+    "recent_rate",
+    "persistence_raw",
+    "persistence_calibrated"
+  ]
+}

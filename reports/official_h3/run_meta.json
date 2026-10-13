@@ -1,0 +1,87 @@
+{
+  "config": "official_h3",
+  "source": "official",
+  "dates": {
+    "train": [
+      "2022-03-23 00:00:00+00:00",
+      "2026-06-29 00:00:00+00:00"
+    ],
+    "val": [
+      "2026-06-29 00:00:00+00:00",
+      "2026-07-27 00:00:00+00:00"
+    ],
+    "test": [
+      "2026-07-27 00:00:00+00:00",
+      "2026-09-07 00:00:00+00:00"
+    ]
+  },
+  "grid": [
+    "2022-03-23 00:00:00+00:00",
+    "2026-09-07 00:00:00+00:00"
+  ],
+  "coverage_end": "2026-09-07 05:28:00+00:00",
+  "H": "0 days 03:00:00",
+  "target_levels": "any",
+  "standing_cap": "1 days 00:00:00",
+  "approved_gaps": [
+    [
+      "2026-08-29 00:00:00+00:00",
+      "2026-09-03 00:00:00+00:00"
+    ]
+  ],
+  "data_url": "https://raw.githubusercontent.com/Vadimkin/ukrainian-air-raid-sirens-dataset/main/datasets/official_data_en.csv",
+  "data_sha256": "b396f87696243069eec0219880e87dcd642b20beb0a7bae0d0e1f61e1ed20ec4",
+  "row_counts": {
+    "raw_rows": 299275,
+    "duplicate_rows": 113845,
+    "dedup_rows": 185430,
+    "excluded_rows": 1,
+    "final_rows": 185429
+  },
+  "alert_range": [
+    "2022-03-15 16:10:34+00:00",
+    "2026-09-07 05:28:22+00:00"
+  ],
+  "grid_shape": [
+    938304,
+    7
+  ],
+  "git_commit": "8db3861a7656315b5b3af70ded5b93de6451fe7e",
+  "git_dirty": true,
+  "python": "3.13.5",
+  "packages": {
+    "pandas": "3.0.6",
+    "numpy": "2.5.4",
+    "scikit-learn": "1.9.1",
+    "lightgbm": "4.7.0",
+    "matplotlib": "3.11.2",
+    "pytest": "9.1.1",
+    "requests": "2.34.2",
+    "streamlit": "1.65.0"
+  },
+  "features": [
+    "minutes_since_last_start",
+    "minutes_since_last_end",
+    "onsets_last_24h",
+    "onsets_last_7d",
+    "neighbors_active_at_t",
+    "national_active_count_at_t",
+    "hour_kyiv",
+    "weekday_kyiv",
+    "unit_code"
+  ],
+  "m3": {
+    "split": "val",
+    "baselines": [
+      "climatology",
+      "recent_rate",
+      "persistence_raw",
+      "persistence_calibrated"
+    ],
+    "recent_rate": "(k + 10.0*p_unit)/(n + 10.0), window 14 days 00:00:00, s <= t - H"
+  },
+  "m4": {
+    "best_iteration": 203,
+    "calibration": "platt"
+  }
+}

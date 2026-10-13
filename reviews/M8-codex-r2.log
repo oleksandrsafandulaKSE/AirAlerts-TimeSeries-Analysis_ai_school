@@ -1,0 +1,24 @@
+[codex] I’ll check each previous finding against the updated plan and builder’s evidence, then assess the provisional decisi
+[codex] > 'cat plans/M8.md'
+[codex] > 'cat DECISIONS.md'
+[codex] > 'cat CLAUDE.md'
+[codex] > 'cat .claude/skills/ts-leakage-audit/SKILL.md'
+[codex] > 'cat reviews/M8-codex-r1.md'
+[codex] > 'cat reviews/M8-claude-r1.md'
+[codex] > "rg --files -g AGENTS.md -g '*M8*' -g '*m8*'"
+[codex] The plan addresses several earlier blockers: it records approval for the new forecast interval, preserves observation-ti
+[codex] > 'cat CLAUDE.md'
+[codex] > 'cat reviews/M8-claude-r1.md'
+[codex] > 'cat improve/features_plus.py; cat src/grid.py; cat src/features.py'
+[codex] > 'tail -n 45 DECISIONS.md'
+[codex] > "rg --files src tests scripts improve .claude/skills; rg -n 'D-030|D-032|D-028|D-029|confirmed_throu
+[codex] > 'nl -ba plans/M8.md'
+[codex] > "sed -n '40,155p' improve/features_plus.py; cat improve/model_plus.py"
+[codex] > "sed -n '1,180p' src/grid.py; sed -n '1,160p' src/features.py; sed -n '185,215p' src/data.py"
+[codex] > "cat reviews/PROPOSED-DECISIONS-M4-M5.md; sed -n '1,90p' plans/M7.md; rg --files --hidden -g AGENTS.
+[codex] Two gaps remain: a fresh history fetch can reset coverage without proving that an older outage was recovered, and the GE
+[codex] > "rg -n 'api_oblast_name|FEATURES|units\\(|_UNITS|def unit_intervals|finished_at|cap|EXCLUDED_API' sr
+[codex] ## PREVIOUS ITEMS
+Reading prompt from stdin...
+session_id=01a134cf-c2a8-7152-b487-e6f9e4be4480
+output_path=reviews/M8-codex-r2.md

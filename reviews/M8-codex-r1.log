@@ -1,0 +1,14 @@
+[codex] I’ll read the priority files first, then check the relevant code and tests for contradictions, leakage, and gaps in th
+[codex] > 'cat plans/M8.md CLAUDE.md DECISIONS.md reviews/PROPOSED-DECISIONS-M4-M5.md .claude/skills/ts-leakag
+[codex] I’m applying the leakage-audit skill, especially its truncation test. I’ll also check whether the live polling desig
+[codex] > 'nl -ba plans/M8.md; nl -ba DECISIONS.md'
+[codex] > "rg --files -g AGENTS.md -g '*.py' src tests scripts improve; rg -n 'offset|label_rates|MODEL_FEATUR
+[codex] > 'cat src/grid.py src/features.py src/regions.py src/data.py'
+[codex] > "cat tests/test_improve_leakage.py; sed -n '150,195p' DECISIONS.md; rg --files -g AGENTS.md -g '*M8*
+[codex] > 'cat improve/features_plus.py improve/model_plus.py scripts/run_improve.py'
+[codex] > 'cat src/regions.py src/features.py src/grid.py'
+[codex] The main blocker is recomputing an hourly forecast from polls received later in that hour. Reconciliation can also overw
+[codex] ## BLOCKERS
+Reading prompt from stdin...
+session_id=01a134cb-c4aa-7ec3-a196-8e653f744919
+output_path=reviews/M8-codex-r1.md

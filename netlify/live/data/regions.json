@@ -1,0 +1,289 @@
+{
+ "units": [
+  "kyiv_city",
+  "chernihivska",
+  "sumska",
+  "kharkivska",
+  "donetska",
+  "dnipropetrovska",
+  "zaporizka",
+  "khersonska",
+  "mykolaivska",
+  "kyivska",
+  "zhytomyrska",
+  "vinnytska",
+  "cherkaska",
+  "poltavska",
+  "kirovohradska",
+  "odeska",
+  "khmelnytska",
+  "rivnenska",
+  "volynska",
+  "lvivska",
+  "ternopilska",
+  "ivano_frankivska",
+  "zakarpatska",
+  "chernivetska"
+ ],
+ "groups": {
+  "kyiv_city": "kyiv_city",
+  "chernihivska": "frontline",
+  "sumska": "frontline",
+  "kharkivska": "frontline",
+  "donetska": "frontline",
+  "dnipropetrovska": "frontline",
+  "zaporizka": "frontline",
+  "khersonska": "frontline",
+  "mykolaivska": "frontline",
+  "kyivska": "rear",
+  "zhytomyrska": "rear",
+  "vinnytska": "rear",
+  "cherkaska": "rear",
+  "poltavska": "rear",
+  "kirovohradska": "rear",
+  "odeska": "rear",
+  "khmelnytska": "rear",
+  "rivnenska": "rear",
+  "volynska": "rear",
+  "lvivska": "rear",
+  "ternopilska": "rear",
+  "ivano_frankivska": "rear",
+  "zakarpatska": "rear",
+  "chernivetska": "rear"
+ },
+ "neighbours": {
+  "kyiv_city": [
+   "kyivska"
+  ],
+  "chernihivska": [
+   "kyivska",
+   "poltavska",
+   "sumska"
+  ],
+  "sumska": [
+   "chernihivska",
+   "kharkivska",
+   "poltavska"
+  ],
+  "kharkivska": [
+   "dnipropetrovska",
+   "donetska",
+   "poltavska",
+   "sumska"
+  ],
+  "donetska": [
+   "dnipropetrovska",
+   "kharkivska",
+   "zaporizka"
+  ],
+  "dnipropetrovska": [
+   "donetska",
+   "kharkivska",
+   "khersonska",
+   "kirovohradska",
+   "mykolaivska",
+   "poltavska",
+   "zaporizka"
+  ],
+  "zaporizka": [
+   "dnipropetrovska",
+   "donetska",
+   "khersonska"
+  ],
+  "khersonska": [
+   "dnipropetrovska",
+   "mykolaivska",
+   "zaporizka"
+  ],
+  "mykolaivska": [
+   "dnipropetrovska",
+   "khersonska",
+   "kirovohradska",
+   "odeska"
+  ],
+  "kyivska": [
+   "cherkaska",
+   "chernihivska",
+   "kyiv_city",
+   "poltavska",
+   "vinnytska",
+   "zhytomyrska"
+  ],
+  "zhytomyrska": [
+   "khmelnytska",
+   "kyivska",
+   "rivnenska",
+   "vinnytska"
+  ],
+  "vinnytska": [
+   "cherkaska",
+   "chernivetska",
+   "khmelnytska",
+   "kirovohradska",
+   "kyivska",
+   "odeska",
+   "zhytomyrska"
+  ],
+  "cherkaska": [
+   "kirovohradska",
+   "kyivska",
+   "poltavska",
+   "vinnytska"
+  ],
+  "poltavska": [
+   "cherkaska",
+   "chernihivska",
+   "dnipropetrovska",
+   "kharkivska",
+   "kirovohradska",
+   "kyivska",
+   "sumska"
+  ],
+  "kirovohradska": [
+   "cherkaska",
+   "dnipropetrovska",
+   "mykolaivska",
+   "odeska",
+   "poltavska",
+   "vinnytska"
+  ],
+  "odeska": [
+   "kirovohradska",
+   "mykolaivska",
+   "vinnytska"
+  ],
+  "khmelnytska": [
+   "chernivetska",
+   "rivnenska",
+   "ternopilska",
+   "vinnytska",
+   "zhytomyrska"
+  ],
+  "rivnenska": [
+   "khmelnytska",
+   "lvivska",
+   "ternopilska",
+   "volynska",
+   "zhytomyrska"
+  ],
+  "volynska": [
+   "lvivska",
+   "rivnenska"
+  ],
+  "lvivska": [
+   "ivano_frankivska",
+   "rivnenska",
+   "ternopilska",
+   "volynska",
+   "zakarpatska"
+  ],
+  "ternopilska": [
+   "chernivetska",
+   "ivano_frankivska",
+   "khmelnytska",
+   "lvivska",
+   "rivnenska"
+  ],
+  "ivano_frankivska": [
+   "chernivetska",
+   "lvivska",
+   "ternopilska",
+   "zakarpatska"
+  ],
+  "zakarpatska": [
+   "chernivetska",
+   "ivano_frankivska",
+   "lvivska"
+  ],
+  "chernivetska": [
+   "ivano_frankivska",
+   "khmelnytska",
+   "ternopilska",
+   "vinnytska",
+   "zakarpatska"
+  ]
+ },
+ "api_oblast_name": {
+  "м. Київ": "kyiv_city",
+  "Чернігівська область": "chernihivska",
+  "Сумська область": "sumska",
+  "Харківська область": "kharkivska",
+  "Донецька область": "donetska",
+  "Дніпропетровська область": "dnipropetrovska",
+  "Запорізька область": "zaporizka",
+  "Херсонська область": "khersonska",
+  "Миколаївська область": "mykolaivska",
+  "Київська область": "kyivska",
+  "Житомирська область": "zhytomyrska",
+  "Вінницька область": "vinnytska",
+  "Черкаська область": "cherkaska",
+  "Полтавська область": "poltavska",
+  "Кіровоградська область": "kirovohradska",
+  "Одеська область": "odeska",
+  "Хмельницька область": "khmelnytska",
+  "Рівненська область": "rivnenska",
+  "Волинська область": "volynska",
+  "Львівська область": "lvivska",
+  "Тернопільська область": "ternopilska",
+  "Івано-Франківська область": "ivano_frankivska",
+  "Закарпатська область": "zakarpatska",
+  "Чернівецька область": "chernivetska"
+ },
+ "api_uid": {
+  "kyiv_city": 31,
+  "chernihivska": 25,
+  "sumska": 20,
+  "kharkivska": 22,
+  "donetska": 28,
+  "dnipropetrovska": 9,
+  "zaporizka": 12,
+  "khersonska": 23,
+  "mykolaivska": 17,
+  "kyivska": 14,
+  "zhytomyrska": 10,
+  "vinnytska": 4,
+  "cherkaska": 24,
+  "poltavska": 19,
+  "kirovohradska": 15,
+  "odeska": 18,
+  "khmelnytska": 3,
+  "rivnenska": 5,
+  "volynska": 8,
+  "lvivska": 27,
+  "ternopilska": 21,
+  "ivano_frankivska": 13,
+  "zakarpatska": 11,
+  "chernivetska": 26
+ },
+ "excluded_api_names": [
+  "Луганська область",
+  "Автономна Республіка Крим",
+  "м. Севастополь"
+ ],
+ "official_name": {
+  "kyiv_city": "Kyiv City",
+  "chernihivska": "Chernihivska oblast",
+  "sumska": "Sumska oblast",
+  "kharkivska": "Kharkivska oblast",
+  "donetska": "Donetska oblast",
+  "dnipropetrovska": "Dnipropetrovska oblast",
+  "zaporizka": "Zaporizka oblast",
+  "khersonska": "Khersonska oblast",
+  "mykolaivska": "Mykolaivska oblast",
+  "kyivska": "Kyivska oblast",
+  "zhytomyrska": "Zhytomyrska oblast",
+  "vinnytska": "Vinnytska oblast",
+  "cherkaska": "Cherkaska oblast",
+  "poltavska": "Poltavska oblast",
+  "kirovohradska": "Kirovohradska oblast",
+  "odeska": "Odeska oblast",
+  "khmelnytska": "Khmelnytska oblast",
+  "rivnenska": "Rivnenska oblast",
+  "volynska": "Volynska oblast",
+  "lvivska": "Lvivska oblast",
+  "ternopilska": "Ternopilska oblast",
+  "ivano_frankivska": "Ivano-Frankivska oblast",
+  "zakarpatska": "Zakarpatska oblast",
+  "chernivetska": "Chernivetska oblast"
+ }
+}

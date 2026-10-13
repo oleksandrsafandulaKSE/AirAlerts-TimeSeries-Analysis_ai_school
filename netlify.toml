@@ -1,0 +1,16 @@
+# Static results site, pre-built by `python scripts/build_site.py` (M5). No build step on Netlify.
+# M8: two functions in netlify/functions (scheduled `update-forecast` every minute, GET /api/forecast); their shared code,
+# model and data live in netlify/live/ and are bundled through imports.
+[build]
+  publish = "site"
+  command = ""
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"

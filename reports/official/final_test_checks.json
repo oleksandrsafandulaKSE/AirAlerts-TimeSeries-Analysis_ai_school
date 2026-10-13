@@ -1,0 +1,30 @@
+{
+  "eligibility": {
+    "in_range": 24192,
+    "eligible": 13116,
+    "excluded_exclusive": {
+      "purge": 0,
+      "masked": 9877,
+      "y_nan": 0,
+      "feature_nan": 1199
+    },
+    "excluded_overlapping": {
+      "purge": 0,
+      "masked": 9877,
+      "y_nan": 3480,
+      "feature_nan": 5184
+    }
+  },
+  "nan_reasons": [],
+  "predictors": [
+    "model",
+    "climatology",
+    "recent_rate",
+    "persistence_raw",
+    "persistence_calibrated"
+  ],
+  "recent_rate_history_n": {
+    "min": 2.0,
+    "median": 323.0
+  }
+}

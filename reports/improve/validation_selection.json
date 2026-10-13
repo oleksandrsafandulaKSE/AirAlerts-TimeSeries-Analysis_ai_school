@@ -1,0 +1,23 @@
+{
+  "rows": 11160,
+  "brier": {
+    "V0": 0.07820286835252128,
+    "V2": 0.07694655053297902,
+    "V3": 0.07694655053297902,
+    "V5": 0.07672765461728277,
+    "recent_rate": 0.07745187484834336
+  },
+  "best_posthoc_by_validation": "V5",
+  "accepted_blocks": [],
+  "v3_features": [
+    "minutes_since_last_start",
+    "minutes_since_last_end",
+    "onsets_last_24h",
+    "onsets_last_7d",
+    "neighbors_active_at_t",
+    "national_active_count_at_t",
+    "hour_kyiv",
+    "weekday_kyiv",
+    "unit_code"
+  ]
+}

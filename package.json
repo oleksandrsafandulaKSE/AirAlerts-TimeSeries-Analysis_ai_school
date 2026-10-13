@@ -1,0 +1,7 @@
+{
+  "name": "airalert-live",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test 'netlify/live/test/*.test.mjs'" },
+  "dependencies": { "@netlify/blobs": "8.1.0" }
+}

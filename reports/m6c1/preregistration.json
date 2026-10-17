@@ -1,0 +1,120 @@
+{
+  "best_iteration": {
+    "any_h1": 51,
+    "any_h3": 36,
+    "red_h1": 37,
+    "red_h3": 31,
+    "yellow_h1": 38,
+    "yellow_h3": 31
+  },
+  "blend": {
+    "n0": 50.0,
+    "window": "28 days 00:00:00"
+  },
+  "calibration": {
+    "any_h1": "platt",
+    "any_h3": "platt",
+    "red_h1": "none",
+    "red_h3": "none",
+    "yellow_h1": "platt",
+    "yellow_h3": "platt"
+  },
+  "code_fingerprint": "a9a927516e68195c2b7ec29b233971f030931b79f446615f71e4d0a5876ab691",
+  "coverage": {
+    "coverage_end": "2026-10-17 19:36:38+00:00",
+    "history_start": "2026-09-12 17:00:43+00:00",
+    "holes": []
+  },
+  "features": {
+    "any": [
+      "minutes_since_last_start",
+      "minutes_since_last_end",
+      "onsets_last_24h",
+      "onsets_last_7d",
+      "neighbors_active_at_t",
+      "national_active_count_at_t",
+      "hour_kyiv",
+      "weekday_kyiv",
+      "unit_code"
+    ],
+    "red": [
+      "minutes_since_last_start",
+      "minutes_since_last_end",
+      "onsets_last_24h",
+      "onsets_last_7d",
+      "neighbors_active_at_t",
+      "national_active_count_at_t",
+      "hour_kyiv",
+      "weekday_kyiv",
+      "unit_code",
+      "other_level_active_at_t"
+    ],
+    "yellow": [
+      "minutes_since_last_start",
+      "minutes_since_last_end",
+      "onsets_last_24h",
+      "onsets_last_7d",
+      "neighbors_active_at_t",
+      "national_active_count_at_t",
+      "hour_kyiv",
+      "weekday_kyiv",
+      "unit_code",
+      "other_level_active_at_t"
+    ]
+  },
+  "inputs_sha256": {
+    "coverage_holes": "1c2c476b2e818627a1f5828572eb76b744ab92ced56823b7338bc53c1bf8b5f5",
+    "datastore": "3c2bf258b6513a3439f2512a8a8e269829f9ddaf7cd05a685b66e92d88aa28f2",
+    "pull_log": "6360969be8895e9230c979e36d592fd84b42b942df3c0feaa773bffd975b5e96"
+  },
+  "label": "EXPLORATORY: alerts.in.ua event-time reconstruction, one test week",
+  "lightgbm_params": {
+    "bagging_fraction": 1.0,
+    "bagging_freq": 0,
+    "deterministic": true,
+    "feature_fraction": 1.0,
+    "force_row_wise": true,
+    "learning_rate": 0.05,
+    "metric": "binary_logloss",
+    "min_data_in_leaf": 100,
+    "num_leaves": 31,
+    "num_threads": 1,
+    "objective": "binary",
+    "seed": 20261013,
+    "verbose": -1
+  },
+  "sha256": {
+    "baseline_fit_any_h1.json": "d5cebd5f60398a104fa7aafc57dce4d6ec8c6ae54c1726d77353f6c53bfcc953",
+    "baseline_fit_any_h3.json": "e99d29ff8e04709a62bf79ea1776cad0dd5a2d0fb6610c276348c6b371cab2a7",
+    "baseline_fit_red_h1.json": "cf3dcd8f139ded7bda4b5f41b6ff330620e40b182762d3829d81b5e8b2fa2a46",
+    "baseline_fit_red_h3.json": "b8eb1bf70959381015aacce276f2d06a6770ff456b07b5c3b340ac1d525f4a3e",
+    "baseline_fit_yellow_h1.json": "36ed5095bea3ea89228a109d4d23e98d1e3803fce0aa1f33d97e7dcb885edea1",
+    "baseline_fit_yellow_h3.json": "2b310e4c397342eb41ce533eb9ea8433a94cbb43957d1f81227ac5891cfd0cba",
+    "calibrator_any_h1.json": "e1781acb267e1207775d00e29116cbbf265e780f49420f6340b62db8ec02d34e",
+    "calibrator_any_h3.json": "392960a60030709c1cf2d786de1828fd08c158c600dfba00cb8078c9afff8e2a",
+    "calibrator_red_h1.json": "aba2df596f5a81ad0712d9865bf96e20dfb41800a85f57274b8aa722808055f0",
+    "calibrator_red_h3.json": "51fd3ae72374f1e2158cab1d62ba45a3d059ef6ebcd5a66fd1a2a34f0fc8bca0",
+    "calibrator_yellow_h1.json": "ab147f3aed44259bd8bd4c25e3495e26234ddaf39706080d1d4f40803896dee3",
+    "calibrator_yellow_h3.json": "2d3f04fa53eb670bd4f8623f741d1a109db410f0299f20c35e48816db9b0643e",
+    "model_any_h1.txt": "08b99beb0ff96fd456ad150e88e48e082ddc36ecb85b8dfb1e041155ab1fd031",
+    "model_any_h3.txt": "c837dcb9a94b0a8acef48f613fb3121d96d968aed6ee13bbf7ce33cb2c872c0c",
+    "model_red_h1.txt": "f6498325a4500030e425e962e03d6daff1eebf1ac7ccb190119cae014316d652",
+    "model_red_h3.txt": "11895d49ec9193725889408d77f628ae049a78065d084f912f7b2636659e68e2",
+    "model_yellow_h1.txt": "f226ac97e0c4b26f25732890c32475deaddae6540939c24bde1da9562f4a3e0b",
+    "model_yellow_h3.txt": "8b5a979bc514ca0c2e9335874daba542ee0324d48186f9d192b17515606aa477",
+    "val_predictions_any_h1.csv": "9700fc7c16f22c45df257e31c9551e9c03217483bfbaad39aa699c3a4973c23e",
+    "val_predictions_any_h3.csv": "aa4719f39091a1a1c033ddebe7e1661c42ebb535defae472822229f04036af3d",
+    "val_predictions_red_h1.csv": "278d50b65d5dba695bc976ce3602c1927eb3bac1476004c65ba6c00798d22dfd",
+    "val_predictions_red_h3.csv": "7161c57900f14db3a299a19eb6a09df77d9acdd7b3602444a38388d0a9c578f2",
+    "val_predictions_yellow_h1.csv": "9ec584b4005268a47e1fb955d13991760f34ba33a31bc31415739f24a0ae5567",
+    "val_predictions_yellow_h3.csv": "f00de6182750380af7ede87558d6300cf59ef77b741fcab86bfa8e5efae675e6"
+  },
+  "split": {
+    "grid_start": "2026-09-13 00:00:00+00:00",
+    "name": "first",
+    "test_end": "2026-10-17 19:00:00+00:00",
+    "test_start": "2026-10-11 00:00:00+00:00",
+    "train": "(Timestamp('2026-09-13 00:00:00+0000', tz='UTC'), Timestamp('2026-10-04 00:00:00+0000', tz='UTC'))",
+    "val": "(Timestamp('2026-10-04 00:00:00+0000', tz='UTC'), Timestamp('2026-10-11 00:00:00+0000', tz='UTC'))"
+  }
+}

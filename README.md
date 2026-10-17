@@ -35,7 +35,20 @@ section counts (see "New alert system").
     hours) before the approved gap, the gap, and 24 hours after it; features whose look-back window touches the
     uncertainty zone are missing, and missing-feature rows are not scored (D-022–D-024).
   - **Excluded units:** Luhanska (permanent alert since 2022); Crimea is not in the data (D-008).
-  - **Exactly-30-minute alerts:** kept and counted (D-010).
+  - **Exactly-30-minute alerts:** kept and counted (D-010). There is no spike at exactly thirty minutes, so they are
+    not a parser artefact.
+  - **Exactly-one-hour alerts (parser-imputed ends): kept as-is by decision, pinned and documented** (M9;
+    `plans/notes/fabricated_1h_ends.md`).
+    - **Mechanism:** when a new alert starts at a location more than three hours after an earlier alert there that
+      never got an all-clear, the dataset's parser closes the earlier one at `started_at + 1h`.
+    - **Size:** a few hundred alerts, rising over time and concentrated in two frontline oblasts.
+    - **Causality limitation:** such an end is written only when the next alert at that location starts, so for
+      most affected oblast-hours it was not yet known at t. The truncation leakage test cannot see this, which is
+      documented in `tests/test_leakage.py`.
+    - **Impact:** no validation rows and a small share of test rows. A post-hoc sensitivity on frozen predictions,
+      with no refit, leaves the headline conclusion unchanged.
+    - **Numbers:** in the note. The count is a raising check in `tests/test_data_quality.py`, which lives outside
+      the fingerprinted pipeline code.
 
 <!-- GENERATED:data_facts START -->
 | Fact (official file) | Value |
@@ -205,6 +218,47 @@ For comparison, what was known before the test was scored:
 rear ones; the within-unit AUC is the harder question of ranking hours inside one oblast (D-025). Groups marked
 "low-n" have few scored hours or units left out of the within-unit AUC. At H = 3 the base rate and the reference
 baseline differ, so the two horizons are not comparable.
+
+### Uncertainty and calibration (M9, post-hoc analysis of frozen predictions)
+Computed by `scripts/run_extras.py` from the saved H = 1 predictions, with no refit. The human approved these
+test-period diagnostics explicitly, with three conditions:
+- every pre-declared output is shown;
+- every test number is post-hoc;
+- no model, calibration or feature decision is taken from a test number.
+
+The headline above is unchanged. All numbers are in `reports/extras/` (the README carries no hand-written result
+numbers, M5 rule):
+- `bss_ci.csv`: Brier skill vs the rolling recent rate with block-bootstrap intervals. Week blocks are primary
+  (D-013), with day and moving-day blocks as sensitivity; all oblasts of a block move together.
+- `dm_test.csv`: a row-weighted Diebold–Mariano test with Newey–West variance.
+- `corp.csv`, `corp_validation.png`, `corp_test_posthoc.png`: CORP reliability (PAV/isotonic, diagnostic only)
+  and the decomposition Brier = miscalibration − discrimination + uncertainty.
+- `calibration_ci.csv`: mean predicted minus observed per group, with intervals.
+
+**Reading** (the numbers are in the files above):
+- **Primary scheme, as pre-declared (week blocks, D-013):** on validation, the interval lies entirely below zero,
+  so the model is worse than the rolling recent rate there.
+  - That interval rests on very few week blocks. A percentile bootstrap with so few blocks is probably too
+    narrow, not just coarse.
+  - The day and moving-day sensitivity intervals include zero.
+- **On the test (post-hoc):** every interval includes zero, so there is no evidence of improvement over the recent
+  rate.
+- **Neither split shows a gain.** These are not equivalence claims, since no margin was set in advance, and
+  treating rows as independent would overstate certainty.
+- **CORP:** overall, the model has lower miscalibration but also lower Brier discrimination than the recent rate.
+  - *Hypothesis, not tested:* the recent rate's per-oblast level already separates busy from quiet oblasts, which
+    would explain the gap.
+  - Kyiv City gains through discrimination; the frontline loses on both terms.
+- **Within-oblast ranking:** pooled ROC-AUC mostly measures which oblast is active. The within-oblast AUC above is
+  higher for the model than for the recent rate, but:
+  - no interval was computed for it;
+  - it averages only the oblasts with enough onsets and non-onsets, which leaves out two frontline oblasts;
+  - the recent rate changes slowly, so it is close to chance within an oblast by construction; the stronger
+    reference is calibrated persistence.
+  - So this is a lead worth testing on fresh data, not an established advantage.
+- **Calibration by group:** the model under-forecasts the frontline in both splits, and the overall figure hides
+  this. Under the third condition, any fix (for example a frontline intercept) may only be judged on validation,
+  a backtest or fresh data, never on this test.
 
 ## New alert system (Sept–Oct 2026, exploratory)
 The frozen H = 1 model and the baselines (fitted on official train only) are scored on alerts.in.ua data: target =
@@ -392,6 +446,10 @@ A clean check of the best idea needs new data: a later test period from the API 
 - At H = 3 neighbouring rows share label windows, so rows are autocorrelated; any interval estimate needs week blocks.
 - The new-regime data has a different source, one month of history, and an open question about alert types.
 - Pre-registration files and the access marker are local files; they are only tamper-evident once committed.
+- The effective final test is about a month of scored hours, because of the recording gap and the look-back mask,
+  so intervals on the gain vs the recent rate are wide (`reports/extras/bss_ci.csv`).
+- A few hundred alert ends in the official file are parser-imputed and not known at t (see Data). They are kept by
+  decision and pinned by a test, and the truncation leakage test cannot detect them.
 
 ## Future work
 Automated daily API collection and monthly re-evaluation (M6, D-016); weekly refit inside the test window (D-014);

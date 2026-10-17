@@ -15,7 +15,11 @@ NB = {"A": {"B"}, "B": {"A"}}
 
 
 def truncate(alerts, t):
-    """Alerts as known at t: drop starts after t; ends after t are not yet known."""
+    """Alerts as known at t: drop starts after t; ends after t are not yet known.
+
+    Retained limitation (M9 §A5, human Option 1): an end EARLIER than t that the parser wrote later (a missing all-clear
+    closed at started_at + 1h once the next alert at that location starts) survives this truncation, so this test cannot
+    detect it. See plans/notes/fabricated_1h_ends.md; the count is pinned in tests/test_data_quality.py."""
     a = alerts[alerts["started_at"] <= t].copy()
     a.loc[a["finished_at"] > t, "finished_at"] = pd.NaT
     return a
@@ -371,3 +375,119 @@ def test_api_negative_control_final_duration(api_records):
     cut_al = data.api_alerts(data.truncate_api_records(api_records, t_w), None, NR, require_all_units=False)
     cut = leaky_features(cut_al, [t_w], [w.unit]).set_index("unit")
     assert full.loc[w.unit, "current_alert_final_minutes"] != cut.loc[w.unit, "current_alert_final_minutes"]
+
+
+# ---------------- M9 §E1/§E2: more negative controls (common leaks in related repos) ----------------
+
+def _onsets(alerts, unit):
+    ivs = grid.unit_intervals(alerts[alerts.unit == unit])
+    return pd.to_datetime(ivs[unit][2]).tz_localize("UTC") if unit in ivs else pd.DatetimeIndex([], tz="UTC")
+
+
+def same_day_counts(alerts, times, unit_list=None):
+    """E1. Onsets in the unit's Kyiv civil day containing t: leaky (whole day) and causal (day start .. t]."""
+    rows = []
+    for u in (regions.units() if unit_list is None else unit_list):
+        on = _onsets(alerts, u)
+        for t in pd.DatetimeIndex(times):
+            k = t.tz_convert("Europe/Kyiv")
+            d0 = k.normalize().tz_convert("UTC")
+            d1 = (k.normalize() + pd.DateOffset(days=1)).tz_convert("UTC")  # calendar day: 23/24/25 h
+            rows.append({"unit": u, "t": t, "same_day_onsets_leaky": int(((on >= d0) & (on < d1)).sum()),
+                         "same_day_onsets_causal": int(((on >= d0) & (on <= t)).sum())})
+    return pd.DataFrame(rows)
+
+
+def hours_since_label(alerts, times, unit_list=None, H=pd.Timedelta(hours=1)):
+    """E2 (H = 1, hourly grid). Hours since the last grid hour s with label y(s) = 1, i.e. an onset in (s, s+H].
+    For an onset o that hour is s(o) = floor(o - 1 microsecond). Leaky: s <= t (the current row's own label counts).
+    Causal: s <= t - H (only labels already mature at t)."""
+    assert H == pd.Timedelta(hours=1)
+    rows = []
+    for u in (regions.units() if unit_list is None else unit_list):
+        s_lab = (_onsets(alerts, u) - pd.Timedelta(microseconds=1)).floor("h")
+        for t in pd.DatetimeIndex(times):
+            out = {"unit": u, "t": t}
+            for name, bound in (("hours_since_label_leaky", t), ("hours_since_label_causal", t - H)):
+                cand = s_lab[s_lab <= bound]
+                out[name] = (t - cand.max()) / pd.Timedelta(hours=1) if len(cand) else np.nan
+            rows.append(out)
+    return pd.DataFrame(rows)
+
+
+# Pinned witnesses (M9 §E, from the real data; reviewer M9 #1-#2). UTC hours.
+#  E1: Kyiv City on an ordinary day; then the exact DST instants (01:00 UTC both days) with an onset later that Kyiv day.
+E1_WITNESSES = {
+    "ordinary": ("kyiv_city", "2025-06-10 15:00"),    # onsets 15:23 and 20:02 UTC later the same Kyiv day
+    "dst23h": ("kyiv_city", "2026-03-29 01:00"),      # spring-forward instant; onset 01:12 UTC
+    "dst25h": ("chernihivska", "2025-10-26 01:00"),   # fall-back instant; onset 01:45 UTC
+}
+#  E2: units with an onset in (C - H, C] at each cut-off C, so the label of row t = C - H matures exactly at C.
+E2_CUTOFF_UNITS = {"val": "cherkaska", "test": "poltavska"}   # onsets 2026-06-28 23:50, 2026-07-26 23:21 UTC
+
+
+def _utc(s):
+    return pd.Timestamp(s, tz="UTC")
+
+
+def test_e1_same_day_count_caught_and_causal_clean(real):
+    found, expected = set(), set()
+    for name, (u, ts) in E1_WITNESSES.items():
+        t = _utc(ts)
+        fn = lambda al, x, u=u: same_day_counts(al, x, [u])  # noqa: E731
+        found |= set(truncation_check(fn, real, [t], units=[u], columns=["same_day_onsets_leaky"]))
+        expected.add((t, u, "same_day_onsets_leaky"))
+        k = t.tz_convert("Europe/Kyiv").normalize()
+        midnights = [k.tz_convert("UTC"), (k + pd.DateOffset(days=1)).tz_convert("UTC")]
+        assert truncation_check(fn, real, [t] + midnights, units=[u], columns=["same_day_onsets_causal"]) == [], name
+    assert found == expected
+
+
+def test_e1_counts_follow_kyiv_civil_days_across_dst(real):
+    """Exact values on every hour of both DST days and their neighbours vs an independent local-date count: a UTC-day
+    or a fixed-24-hour day boundary gives different values on these hours."""
+    for u, (lo, hi) in (("kyiv_city", ("2026-03-28 18:00", "2026-03-30 03:00")),
+                        ("chernihivska", ("2025-10-25 18:00", "2025-10-27 03:00"))):
+        times = pd.date_range(_utc(lo), _utc(hi), freq="h")
+        got = same_day_counts(real, times, [u]).set_index("t")
+        on = _onsets(real, u)
+        on_day = on.tz_convert("Europe/Kyiv").date
+        for t in times:
+            day = t.tz_convert("Europe/Kyiv").date()
+            assert got.loc[t, "same_day_onsets_leaky"] == int((on_day == day).sum()), (u, t)
+            assert got.loc[t, "same_day_onsets_causal"] == int(((on_day == day) & (on <= t)).sum()), (u, t)
+
+
+def test_e1_dst_days_have_23_and_25_hours():
+    for day, hours in (("2026-03-29", 23), ("2025-10-26", 25)):
+        d0 = pd.Timestamp(day, tz="Europe/Kyiv")
+        assert (d0 + pd.DateOffset(days=1)) - d0 == pd.Timedelta(hours=hours), day
+
+
+def test_e2_label_feature_caught_and_causal_clean_at_cutoffs(real):
+    H = CFG.H
+    for split, u in E2_CUTOFF_UNITS.items():
+        C = getattr(CFG, split)[0]
+        on = _onsets(real, u)
+        assert ((on > C - H) & (on <= C)).any(), (split, u)  # the pinned onset is still there
+        fn = lambda al, x, u=u: hours_since_label(al, x, [u])  # noqa: E731
+        # leaky: the row t = C - H uses its own label (onset in (C - H, C]) -> caught exactly there
+        assert truncation_check(fn, real, [C - H], units=[u], columns=["hours_since_label_leaky"]) == [
+            (C - H, u, "hours_since_label_leaky")], split
+        assert fn(real, pd.DatetimeIndex([C - H])).iloc[0]["hours_since_label_leaky"] == 0
+        # causal: only labels mature at t -> clean at t = C - H and at t = C
+        assert truncation_check(fn, real, [C - H, C], units=[u], columns=["hours_since_label_causal"]) == [], split
+
+
+def test_e2_label_feature_caught_at_right_endpoint(real):
+    """An onset exactly at t + H (on the hour) is inside (t, t+H]: the leaky version must use it."""
+    H = CFG.H
+    u = "poltavska"
+    on = _onsets(real, u)
+    exact = on[(on == on.floor("h")) & (on >= _utc("2025-06-01"))]
+    assert len(exact), "no on-the-hour onset"
+    t = exact[0] - H
+    fn = lambda al, x: hours_since_label(al, x, [u])  # noqa: E731
+    assert truncation_check(fn, real, [t], units=[u], columns=["hours_since_label_leaky"]) == [
+        (t, u, "hours_since_label_leaky")]
+    assert truncation_check(fn, real, [t, t + H], units=[u], columns=["hours_since_label_causal"]) == []

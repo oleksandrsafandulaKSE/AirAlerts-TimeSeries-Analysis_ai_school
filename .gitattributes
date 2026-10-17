@@ -1,0 +1,3 @@
+# M6a: the append-only guard compares bytes; never convert line endings
+datastore/alerts_in_ua.csv -text
+reports/collect/pull_log.csv -text

@@ -15,6 +15,12 @@ Stop losing new-regime history. alerts.in.ua `month_ago` keeps ~30 days, so ever
 3. a daily GitHub Actions workflow that runs the collector and commits the CSV + a pull log;
 4. one manual test run (local dry run, then one `workflow_dispatch` run), with the 403 fallback documented.
 
+Why (the human, 2026-10-17): M6 collects new-regime history so that a LATER model (M6b+, the human's approval) can
+predict not only whether an alert starts within H hours but also its TYPE = `alert_level` yellow (drones) vs red
+(missiles). M6a therefore must keep `alert_level` (and `alert_type`) on every row; dropping or filtering them is a
+bug. The detailed `threats[]` field is live-only and is NOT collected (the human chose yellow vs red only). A typed
+target is a target change for a later milestone (new D-entry), not part of M6a.
+
 Out of scope: any loader of the datastore into `src.data` / the shared format for modelling, retraining, evaluation
 (M6b, needs the human), README text (the M9 session edits README; a README paragraph is a follow-up).
 
@@ -35,23 +41,22 @@ pinned by `tests/test_improve_models.py::test_headline_code_fingerprint_matches_
 ## 3. Fetch
 - UIDs: exactly the 24 unit UIDs from `src.regions.UNITS[*]["api_uid"]`. Excluded UIDs (16, 29, 30) and the 404 UIDs
   (6, 7) are not requested (never used, D-008). Fixed order (ascending UID).
-- Rate: the collector spaces its requests ≥ 65 s apart (≤ 1/min; 24 requests ≈ 26 min). Sleep is injected (testable).
+- Rate: consecutive request STARTS are ≥ 120 s apart (1 history request / 2 min; 24 requests ≈ 48 min). Sleep and clock
+  are injected (testable).
 - Auth: `Authorization: Bearer <token>` header from env `ALERTS_IN_UA_TOKEN` (locally loaded from `.env`; in Actions
   from the repo secret). Missing/empty → raise before any request. Token never in URLs, prints, exception messages,
   files or the pull log. Error messages contain only the UID, HTTP status and the path.
-- Rate isolation from M8 = DEPLOYMENT PREREQUISITE. M8's cron (`netlify/functions/update-forecast.mjs`, `* * * * *`)
-  makes 1 history request per run with the Netlify token, has no limiter shared with GitHub, and delayed invocations
-  can bunch. Whether the API limit is per token or per IP is undocumented. So the collector runs ONLY with its own
-  alerts.in.ua token, distinct from the Netlify one: separate token + separate IP (GitHub runner vs Netlify) isolate
-  it under either reading, and the collector alone stays ≤ 1/min (CLAUDE.md "max 2 history requests/min"). The human
-  obtains it and stores it as the GitHub secret `ALERTS_IN_UA_TOKEN` (same env name, CLAUDE.md). Until then the
-  workflow is not enabled (the schedule starts only after the human merges, §5). The local dry run (§7.3) happens
-  only while M8's scheduled function is paused or with the collector token.
+- Shared token with M8 (the human, 2026-10-17; proposed D-037, plans/M6-definition.md): the collector uses the SAME
+  `ALERTS_IN_UA_TOKEN` as M8's Netlify function (`* * * * *`, 1 history request per run). Collector 0.5/min + M8
+  1/min = 1.5/min on average, under the 2/min limit. M8's cron has no limiter shared with GitHub, and delayed
+  invocations can bunch, so short bursts above 2/min are possible: such a 429 is retried (below) and counted in the
+  pull log (`n_retries`). If 429s show up, the human gets a second token (secret value change only, no code change).
 - Errors: 429 or 5xx → wait 120 s and retry, at most 2 retries per UID and at most 6 retries per run. Per-request
   HTTP timeout 30 s (a timeout counts as a retryable error). A budget exhausted → the run fails and commits
   nothing; the next daily run re-covers the day via the 29-day window overlap (a hole arises only after ~29 failed
   days, §4.4). Worst SUCCESSFUL run = 24 successful requests each taking the full 30 s, plus 6 retryable failures
-  (each a 30 s timeout + 120 s wait): 24 × (65 s + 30 s) + 6 × (30 s + 120 s) = 38 + 15 = 53 min. 403 → raise immediately with "403: likely geo-block
+  (each a 30 s timeout + 120 s wait before the retry): 24 × 120 s + 6 × (30 s + 120 s) + 30 s ≈ 48 + 15 + 0.5
+  ≈ 64 min. 403 → raise immediately with "403: likely geo-block
   of the runner; see self-hosted fallback (plans/M6a.md §5)". 401 → raise ("token rejected"). Any other non-200,
   invalid JSON or a missing `alerts` list → raise. One UID failing = the whole run fails: nothing is written, nothing
   committed (D-017 #6). The 29-day overlap of daily windows absorbs a failed day.
@@ -62,10 +67,16 @@ pinned by `tests/test_improve_models.py::test_headline_code_fingerprint_matches_
 Columns, fixed order: `id, updated_at, requested_uid, unit, fetched_at, pull_id, location_type, location_uid,
 location_oblast, location_oblast_uid, location_raion, location_title, location_title_en, alert_type, alert_level,
 started_at, finished_at, notes, country`.
-- API values are stored as the raw strings the API returned (no parsing, no tz conversion). JSON null → empty field,
-  and the reader `collect.read_datastore()` decodes an empty field back to `None` (so `finished_at` is `None`, as
-  `src.data.api_alerts` expects). Lossless because an API value that is the empty string `""` raises at validation.
-  `location_raion` exists only on hromada rows (1,080 of 16,739 in the dump) → empty (= absent) elsewhere.
+- Canonical types (checked at validation, raise otherwise): `id`, `location_oblast_uid` = int; `location_raion` =
+  str when present (absent on non-hromada rows; present-but-null raises); `finished_at`, `notes`, `country` =
+  str or null; every other API field = str. Strings are stored verbatim (no parsing, no tz conversion); ints as
+  decimal text. Reversible cell encoding (every allowed value representable, nothing rejected for its content):
+  JSON null, and an absent `location_raion`, → EMPTY cell; the empty string → the cell `\e` (needed: the dump has
+  `notes = ""` on ids 266250 (UID 14), 262685, 262686 (UID 15)); a string starting with a backslash → one extra
+  leading backslash; any other string → itself. Decoding: empty → None (for `location_raion`: absent); `\e` → "";
+  a cell starting with `\\` → drop the first backslash; any other cell starting with `\` → raise (corrupt file);
+  else the text. The reader `collect.read_datastore()` decodes cells back to the canonical types (ints → int), so `finished_at` is `None` as `src.data.api_alerts` expects. Merge keys and content comparisons use
+  the DECODED canonical values, so a reloaded file compares equal to a fresh fetch.
 - `unit` = canonical key of `requested_uid` (`src.regions`), NEVER `location_oblast_uid` (wrong for sub-oblast rows).
 - `fetched_at`, `pull_id` = the pull in which THIS version was first seen (the "known at" time of this version).
   `pull_id` = the run's start time `YYYY-MM-DDTHHMMZ` (seed: `seed-2026-10-12T1645Z`).
@@ -78,9 +89,16 @@ started_at, finished_at, notes, country`.
   So an alert seen open on day d and closed on day d+1 has two rows.
 - "Known at t" contract (reference function `collect.as_known_at(rows, t)`, for M6b): (1) keep rows with
   `fetched_at` ≤ t; (2) per `id`, keep the row with the latest PARSED `updated_at` (D-027); (3) an end with
-  `finished_at` > t is hidden (end unknown → D-020 cap), as `src.data.truncate_api_records` does. Knowledge time is
-  ALWAYS `fetched_at`, never backdated to `updated_at`; seeded rows are unknown before the dump's fetch time
-  (2026-10-12 16:45–17:00 UTC). The D-027 full-history view = `as_known_at(rows, +inf)`.
+  `finished_at` > t is hidden (end unknown → D-020 cap) and (4) a selected version with `started_at` > t is dropped,
+  as `src.data.truncate_api_records` does. Knowledge time is ALWAYS `fetched_at`, never backdated to `updated_at`;
+  seeded rows are unknown before the dump's fetch time (2026-10-12 16:45–17:00 UTC). The D-027 full-history view =
+  `as_known_at(rows, +inf)`.
+- Two views, named so they are never confused: (A) OBSERVED view = `as_known_at` (what this collector had actually
+  seen at t; for live-replay audits). (B) EVENT-TIME RECONSTRUCTION = the D-027 full-history view truncated by event
+  timestamps (starts ≤ t, ends > t hidden) — exactly how the official dataset is used (it is also a retrospective
+  file). Model training/evaluation on Sept–Oct history (M6c-1) can only use (B), because nothing was observed by this
+  collector before 2026-10-12; results from (B) must never be described as a replay of what was observed then.
+  The M6c-1 plan defines its protocol; M6a only provides both functions and labels them.
 - Same key with different content in any API column → raise (the API changed a record without bumping `updated_at`).
 - The same `id` under two `requested_uid` → raise (as `src.data.api_alerts` does).
 - Appended rows are sorted by (`requested_uid`, `id`, `updated_at`) for deterministic diffs.
@@ -92,14 +110,19 @@ started_at, finished_at, notes, country`.
   change → raise);
 - `location_oblast` == `regions.UNITS[unit]["api_oblast_name"]` for every record of that UID (file identity);
 - `started_at`, `updated_at`, non-null `finished_at` parse as ISO-8601 with a `Z` suffix (parsed for validation and
-  comparisons; the raw strings are stored); `finished_at` ≥ `started_at`; no field holds the empty string;
+  comparisons; the raw strings are stored); `finished_at` ≥ `started_at`; canonical types as in §4.1;
 - `alert_level` ∈ {yellow, red}. A new `alert_type` value is NOT an error: stored, and printed in the type counts;
 - window check (evidence for the assumed API contract, §8): per UID, the earliest non-null `finished_at` must be
   ≥ `fetched_at − 30 d − 1 h`; else raise (the API window is not what the coverage rule assumes);
-- printed per run: records per UID, new rows, skipped duplicates, open alerts, counts per `alert_type` × `alert_level`.
+- printed per run: per UID the record count (an EMPTY response is printed as `EMPTY`, not an error), min/max
+  `started_at`, min `finished_at`, new rows, skipped duplicates, open alerts; totals per `alert_type` ×
+  `alert_level`; the run's overall date range (CLAUDE.md: print shapes, date ranges).
+- retry diagnostics, printed on EVERY attempt including the failing last one (sanitized: UID, attempt, HTTP status
+  or exception class name, wait seconds; never headers, never the token).
 ### 4.4 Pull log `reports/collect/pull_log.csv` (append-only, run metadata like `run_meta.json`)
 One row per UID per successful run: `pull_id, uid, unit, http, fetched_at, nominal_window_from (= fetched_at − 30 d),
-n_records, n_new_rows, n_open, n_retries, git_commit`.
+n_records, n_new_rows, n_open, n_retries_429, n_retries_other, git_commit`. `git_commit` = HEAD of the checkout BEFORE
+collection (the code that collected; the data commit itself comes later).
 - Deleted alerts: the API may drop a record; its rows stay. Detecting deletions would need per-pull id membership
   (a second data file or one row per sighting), so M6a does NOT detect them (known limitation, §8).
 - Coverage is NOMINAL: unit u is assumed covered on [nominal_window_from, fetched_at] of each pull, under the API
@@ -121,8 +144,8 @@ n_records, n_new_rows, n_open, n_retries, git_commit`.
 - Triggers: `schedule` daily at 03:17 UTC (off the hour; GitHub cron may be delayed) + `workflow_dispatch`. NO
   `push`/`pull_request` triggers (the job holds a secret; and see the self-hosted note).
 - `runs-on: ${{ vars.COLLECT_RUNNER || 'ubuntu-latest' }}` → the fallback is a repo variable, no code change.
-- `permissions: contents: write`; `concurrency: collect-api` (no overlapping runs); `timeout-minutes: 75` (the
-  worst successful collector run 53 min (§3) + setup/pytest/commit ≈ 5 min + margin).
+- `permissions: contents: write`; `concurrency: collect-api` (no overlapping runs); `timeout-minutes: 90` (the
+  worst successful collector run ≈ 64 min (§3) + setup/pytest/commit ≈ 5 min + margin).
 - Steps: checkout → setup-python 3.13 → `pip install -r requirements.txt` → `pytest -q tests/test_collect.py`
   (collector tests gate the fetch; failing test = no fetch, no commit) → `python scripts/collect_api.py` with
   `ALERTS_IN_UA_TOKEN: ${{ secrets.ALERTS_IN_UA_TOKEN }}` → if the CSV or log changed: commit
@@ -143,21 +166,29 @@ n_records, n_new_rows, n_open, n_retries, git_commit`.
    d+1 03:17 (pull 2), and a correction of `started_at` arrives in pull 3. `as_known_at(d 12:00)` must return the open
    version with the original start; at d+1 04:00 the closed one; a naive "latest `updated_at` regardless of
    `fetched_at`" selector must FAIL these assertions. Seeded rows are absent from `as_known_at(2026-10-12 16:00)`.
+   Separate witnesses for steps (3) and (4): a selected version with `finished_at` = t + 1 s shows `finished_at =
+   None` at t and the end at t + 1 s (boundary: an end exactly at t is kept); a selected version with `started_at`
+   = t + 1 s is absent at t and present at t + 1 s. Removing either step makes its witness fail.
 3. Append-only guard, with a NEGATIVE CONTROL: a merge function that rewrites an old row must be caught by the guard.
 4. Same key, different content → raises; same id under two UIDs → raises.
 5. Any UID non-200 (403, 401, 404, 500 after retries, bad JSON) → raises and the datastore and log are byte-identical
-   to before. 403 message names the self-hosted fallback.
-6. Rate and budget: the fake clock shows ≥ 65 s between ANY two consecutive requests (retries included); a 429
+   to before. 403 message names the self-hosted fallback. Exhausted 429s: the output shows one sanitized
+   diagnostic line per attempt (status 429, attempt number, wait), and the files are byte-identical.
+6. Rate and budget: the fake clock shows ≥ 120 s between ANY two consecutive request starts (retries included); a 429
    retry waits 120 s. Budget exhaustion (separate cases): a 3rd failure of one UID, and a 7th retryable failure in
    one run, each raise with nothing written. Worst SUCCESSFUL schedule (separate case): 6 retryable failures (30 s
    timeouts, spread over ≤ 3 UIDs, ≤ 2 each) plus 24 successful responses each taking 30 s → the run succeeds and
-   its fake-clock duration is ≤ 53 min (below the 75 min job timeout).
+   its fake-clock duration is ≤ 64 min (below the 90 min job timeout).
 7. Token: with a fake token `TEST-SECRET-XYZ`, run success and failure paths; capture stdout/stderr, exception text,
    written files: the token appears nowhere. Missing token → raises before any request.
 8. Schema: an extra field, a missing field, `alert_level` = "green", a non-`Z` timestamp, a malformed timestamp
-   ending in `Z` (`2026-13-40T..Z`), an empty-string field, a wrong `location_oblast`, an earliest `finished_at` older
-   than the window → raise; a new `alert_type` → stored. Null round-trip: `finished_at`/`notes`/`location_raion`
-   null → empty → `None`.
+   ending in `Z` (`2026-13-40T..Z`), a wrong type (`id` as string), a present-but-null `location_raion`, a wrong `location_oblast`, an earliest `finished_at` older
+   than the window → raise; a new `alert_type` → stored. Encoding round-trip, each tested independently:
+   `finished_at`/`notes` null → empty → None; an ABSENT `location_raion` → empty → absent; `notes` = "" → `\e` → "";
+   `notes` = the literal text `\e` → `\\e` → `\e`; `notes` = `\x` → `\\x` → `\x`; a hand-corrupted cell `\x`
+   in the file → read raises. Real-data witness: the 3 dump records with `notes = ""` (ids 266250, 262685, 262686)
+   survive seed → write → reload with `notes == ""`, and merge → write → reload → re-merge of the SAME fetch adds 0
+   rows and raises no content conflict (types canonical after reload).
 9. Coverage: pulls 1 day apart → no hole; 29 days apart → no hole; 31 days apart → raises, CSV and log
    byte-identical, and a second attempt raises again.
    Crash recovery: CSV renamed but log not (simulated) → the next run raises "incomplete previous run".
@@ -173,9 +204,11 @@ n_records, n_new_rows, n_open, n_retries, git_commit`.
 ## 7. Manual test run and milestone close (done = all true)
 1. `pytest -q` passes. 2. Seed: `python scripts/collect_api.py --seed-from data/raw/alerts_in_ua/2026-10-12T1645Z`
 → row count printed and equal to the dump's records for the 24 units (expect 16,739 minus the excluded/404 UIDs'
-records; printed, not assumed). 3. Local `--dry-run` (one real fetch, ~26 min, token from `.env`): 24 × 200, new rows
+records; printed, not assumed). 3. FIRST FETCH, local and real (the human, 2026-10-17: secure 12 Oct → today now), ~48 min, token from `.env`:
+`python scripts/collect_api.py` on top of the seed, written to the datastore and committed in the M6a commit. Before
+it, a `--dry-run` is not required. Printed: 24 × 200, new rows
 and overlap with the seed printed (most seed ids must be skipped as duplicates). 4. After the human merges to `main`
-and adds the secret: `gh workflow run collect_api.yml`; the run is green, a bot commit appears, the log has 24 rows,
+and adds the secret: `gh workflow run collect_api.yml`; the run is green, a bot commit appears, the log has exactly 24 ADDITIONAL rows with that run's `pull_id`,
 the Actions log contains no token. If step 4 gets 403 → §5 fallback, then re-run.
 5. `reviewer` subagent + `code-review-harness` on the diff; FIX-FIRST items fixed or explained. 6. Summary for the
 human (< 250 words) with a proposed DECISIONS.md entry and the PROVISIONAL decisions; then stop (milestone-protocol).
@@ -192,7 +225,7 @@ Every API call is made only after the human approves it at implementation time (
 - Public repo: the committed CSV republishes alerts.in.ua data (D-016 approved committing it; licence not re-checked).
 - GitHub disables schedules in public repos after 60 days without repository activity; daily bot commits should keep
   it active (to verify after the first month).
-- If M8's live function is not deployed, the 65 s spacing is merely conservative.
+- If M8's live function is not deployed, the shared token carries no burst risk at all.
 - Record deletions by the API are not detected (§4.4).
 
 ## 9. Open questions (design, for the loop)
@@ -200,7 +233,7 @@ Every API call is made only after the human approves it at implementation time (
 - New `alert_type` values: store (plan) vs raise.
 - For the human (not decided by the loop): (a) confirm that committing OPEN versions is covered by D-027 /
   CLAUDE.md line 139 "API merge rule (M4/M6) … KEEP open alerts" (D-016 still says "closed alerts");
-  (b) obtain a second alerts.in.ua token for the collector (deployment prerequisite, §3);
+  (b) [settled 2026-10-17: same token, collector at 1 request / 2 min, proposed D-037];
   (c) RULE-EXCEPTION QUESTION: after a coverage hole (~29 failed days), should a human-acknowledged hole be
   recorded and collection resume (exception to CLAUDE.md Architecture #6 "detected gaps … nothing is committed"),
   or does collection stay stopped until a rule change? The plan builds the strict version.

@@ -11,6 +11,10 @@ __pycache__/
 .DS_Store
 .env
 !reports/**/*.csv
+# M6a (D-016): the only committed data file
+!datastore/alerts_in_ua.csv
+datastore/*.tmp
+reports/collect/*.tmp
 
 # M8: the live config is committed; the seed state (API data, built by scripts/build_live_seed.py) is not
 !netlify/live/data/

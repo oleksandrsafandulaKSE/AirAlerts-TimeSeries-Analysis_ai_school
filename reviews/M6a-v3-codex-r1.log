@@ -1,0 +1,19 @@
+[codex] I’ll read the priority files, then check the addendum against the approved decisions and current collector behavior.
+[codex] > "pwd; rg --files -g 'AGENTS.md' -g 'CLAUDE.md' -g 'DECISIONS.md' -g 'M6a.md' -g 'PROPOSED-DECISIONS-
+[codex] > 'cat plans/M6a.md reviews/PROPOSED-DECISIONS-M6.md CLAUDE.md DECISIONS.md .claude/skills/ts-leakage-
+[codex] I’m applying the project’s leakage-audit skill to check coverage-hole semantics. I’ll treat D-038 and D-039 as app
+[codex] > "nl -ba plans/M6a.md | sed -n '130,310p'"
+[codex] > 'cat DECISIONS.md'
+[codex] > 'cat reviews/PROPOSED-DECISIONS-M6.md; cat CLAUDE.md'
+[codex] > "cat .claude/skills/ts-leakage-audit/SKILL.md; rg --files -g 'AGENTS.md' -g '*M6*consensus*' -g '*co
+[codex] > 'nl -ba CLAUDE.md'
+[codex] > "sed -n '1,125p' DECISIONS.md; cat .github/workflows/collect_api.yml; cat scripts/collect_api.py"
+[codex] > "nl -ba collect/api_collector.py | sed -n '1,260p'"
+[codex] > "nl -ba collect/api_collector.py | sed -n '260,580p'"
+[codex] > "rg -n 'hole|crash|workflow|consisten|dry.run|pull_id|route' tests/test_collect.py reviews/M6a-conse
+[codex] The addendum’s crash repair omits orphaned hole rows, and its workflow instructions don’t explicitly stage the new h
+[codex] > "sed -n '425,475p' tests/test_collect.py; sed -n '1,100p' reviews/M6a-consensus.md; nl -ba plans/M6a
+[codex] ## BLOCKERS
+Reading prompt from stdin...
+session_id=01a14b93-b1cb-7703-8f19-4c5930ca91b3
+output_path=reviews/M6a-v3-codex-r1.md

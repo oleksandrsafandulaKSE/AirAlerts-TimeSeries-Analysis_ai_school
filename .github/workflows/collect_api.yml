@@ -1,0 +1,73 @@
+# M6a: daily alerts.in.ua history pull -> datastore/alerts_in_ua.csv + reports/collect/{pull_log,coverage_holes}.csv
+# (plans/M6a.md §5). No push / pull_request triggers: the job holds a secret and may run on a self-hosted runner.
+# Collector exit code: 0 -> commit; 3 -> coverage hole recorded: commit, then fail the run (e-mail); other -> no commit.
+# tests/test_collect.py executes the steps below from "Pull" on (keep the step layout: name / id / if / shell / run).
+name: collect-api
+
+on:
+  schedule:
+    - cron: "17 3 * * *"        # 03:17 UTC daily (off the hour; GitHub may delay scheduled runs)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-api
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    # 403 fallback: set the repo variable COLLECT_RUNNER (e.g. "collect") to use a self-hosted runner (plans/M6a.md §5)
+    runs-on: ${{ vars.COLLECT_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 90           # worst successful collector run ~64 min (plans/M6a.md §3) + setup + margin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13.5"
+          cache: pip
+
+      - name: Install pinned requirements
+        run: pip install -r requirements.txt
+
+      - name: Collector tests gate the fetch
+        run: python -m pytest -q tests/test_collect.py
+
+      - name: Pull alerts.in.ua history (24 units, 1 request / 2 min)
+        id: collect
+        shell: bash {0}
+        env:
+          ALERTS_IN_UA_TOKEN: ${{ secrets.ALERTS_IN_UA_TOKEN }}
+        run: |
+          python scripts/collect_api.py
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Commit the new rows
+        if: steps.collect.outputs.code == '0' || steps.collect.outputs.code == '3'
+        run: |
+          FILES="datastore/alerts_in_ua.csv reports/collect/pull_log.csv reports/collect/coverage_holes.csv"
+          if [ -z "$(git status --porcelain -- $FILES)" ]; then
+            echo "no changes"; exit 0
+          fi
+          PULL_ID="$(tail -n 1 reports/collect/pull_log.csv | cut -d, -f1)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- $FILES
+          git commit -m "data: alerts.in.ua pull ${PULL_ID}"
+          if ! { git pull --rebase origin main && git push origin HEAD:main; }; then
+            git rebase --abort 2>/dev/null || true
+            sleep 30
+            git pull --rebase origin main && git push origin HEAD:main
+          fi
+
+      - name: Fail the run on a coverage hole or a failed pull
+        if: steps.collect.outputs.code != '0'
+        run: |
+          echo "collector exit code ${{ steps.collect.outputs.code }} (3 = coverage hole recorded in reports/collect/coverage_holes.csv, data committed; anything else = failed pull, nothing committed)"
+          exit 1

@@ -1,7 +1,8 @@
 """alerts.in.ua history collector (plans/M6a.md): fetch -> validate -> append-only merge -> pull log.
 
 One CSV row = one record VERSION, key (id, updated_at). Knowledge time of a version = `fetched_at` of the pull that
-first saw it. Every check raises (D-017 #6); a failed run writes nothing. The token is only ever put in a request
+first saw it. Every check raises (D-017 #6); a failed run writes nothing. Exception (D-039 proposed): a coverage hole is
+recorded in reports/collect/coverage_holes.csv and collection continues. The token is only ever put in a request
 header: it never appears in URLs, prints, exception messages or files.
 """
 import csv
@@ -44,6 +45,7 @@ COLUMNS = ["id", "updated_at", "requested_uid", "unit", "fetched_at", "pull_id",
            "alert_type", "alert_level", "started_at", "finished_at", "notes", "country"]
 META_COLUMNS = ("requested_uid", "unit", "fetched_at", "pull_id")
 API_COLUMNS = [c for c in COLUMNS if c not in META_COLUMNS]
+HOLES_COLUMNS = ["pull_id", "uid", "unit", "hole_from", "hole_to", "git_commit"]
 LOG_COLUMNS = ["pull_id", "uid", "unit", "http", "fetched_at", "nominal_window_from", "n_records", "n_new_rows",
                "n_open", "n_retries_429", "n_retries_other", "git_commit"]
 
@@ -170,12 +172,14 @@ def _write_tmp(path, data):
     return tmp
 
 
-def write_both(store_path, store_bytes, log_path, log_bytes):
-    """Both files to temp files first, then CSV rename, then log rename (plans/M6a.md §4.4)."""
+def write_all(store_path, store_bytes, holes_path, holes_bytes, log_path, log_bytes):
+    """All files to temp files first, then renames in the order CSV, holes, log (the log last; plans/M6a.md §4.4)."""
     t1 = _write_tmp(store_path, store_bytes)
-    t2 = _write_tmp(log_path, log_bytes)
+    t2 = _write_tmp(holes_path, holes_bytes)
+    t3 = _write_tmp(log_path, log_bytes)
     os.replace(t1, store_path)
-    os.replace(t2, log_path)
+    os.replace(t2, holes_path)
+    os.replace(t3, log_path)
 
 
 def decode_row(cells):
@@ -364,13 +368,23 @@ def merge(existing, pulls, pull_id):
     return new, stats
 
 
-def check_consistency(store_rows, log_rows):
-    """Every pull_id in the CSV must be in the log (a crash between the two renames leaves it out)."""
-    missing = sorted({r["pull_id"] for r in store_rows} - {r["pull_id"] for r in log_rows})
+def check_consistency(store_rows, log_rows, hole_rows=()):
+    """Every pull_id in the CSV and in the holes file must be in the log (the log is renamed last, so a crash between
+    the renames leaves it out)."""
+    missing = sorted(({r["pull_id"] for r in store_rows} | {r["pull_id"] for r in hole_rows})
+                     - {r["pull_id"] for r in log_rows})
     if missing:
-        raise CollectError(f"incomplete previous run: pull_id(s) {missing} are in the datastore but not in the pull "
-                           f"log. Repair: drop the datastore rows of those pull_ids (they were never committed), "
-                           f"then re-run.")
+        raise CollectError(f"incomplete previous run: pull_id(s) {missing} are in the datastore or the holes file but "
+                           f"not in the pull log. Repair: restore BOTH files to their last committed state (git checkout "
+                           f"-- datastore/alerts_in_ua.csv reports/collect/coverage_holes.csv; that run was never "
+                           f"committed), then re-run.")
+
+
+def check_holes_file_present(holes_path, log_rows):
+    """A missing holes file is only valid before the first write (empty log); otherwise recorded holes would vanish."""
+    if log_rows and not Path(holes_path).exists():
+        raise CollectError(f"{holes_path} is missing but the pull log has rows: recorded coverage holes would be lost. "
+                           f"Restore it (git checkout -- reports/collect/coverage_holes.csv)")
 
 
 def check_store_matches_log(store_rows, log_rows, live):
@@ -385,22 +399,33 @@ def check_store_matches_log(store_rows, log_rows, live):
         raise CollectError("empty pull log: seed the datastore first (scripts/collect_api.py --seed-from DUMP)")
 
 
-def check_holes(log_rows, fetched_at_by_uid):
-    """HOLE = new nominal window start later than the unit's previous fetched_at -> raise (D-017 #6)."""
+def find_holes(log_rows, fetched_at_by_uid):
+    """HOLE = new nominal window start later than the unit's LATEST previous fetched_at. Under D-039 (proposed; the
+    human, 2026-10-17) a hole does not stop collection: it is returned as (uid, hole_from, hole_to), an OPEN
+    interval, and recorded. A unit missing from a non-empty log still raises (coverage unknown)."""
     if not log_rows:
-        return
+        return []
     prev = {}
     for r in log_rows:
         t = parse_ts(r["fetched_at"])
         prev[int(r["uid"])] = max(prev.get(int(r["uid"]), t), t)
-    for uid, fetched_at in fetched_at_by_uid.items():
+    holes = []
+    for uid, fetched_at in sorted(fetched_at_by_uid.items()):
         if uid not in prev:
             raise CollectError(f"uid {uid} has no previous pull in the log: coverage unknown")
         window_from = fetched_at - WINDOW
         if window_from > prev[uid]:
-            raise CollectError(f"COVERAGE HOLE uid {uid}: [{fmt_ts(prev[uid])}, {fmt_ts(window_from)}) is not covered "
-                               f"(previous pull {fmt_ts(prev[uid])}, new window starts {fmt_ts(window_from)}). "
-                               f"Nothing committed; collection stops until the human decides (plans/M6a.md §4.4).")
+            holes.append((uid, prev[uid], window_from))
+    return holes
+
+
+def covered(log_rows, hole_rows, uid, t):
+    """Raw EVENT coverage of unit `uid` at time t: inside some closed pull window [nominal_window_from, fetched_at]
+    and not inside a recorded OPEN hole (hole_from, hole_to). Not a modelling-eligibility rule (plans/M6a.md §4.4)."""
+    in_window = any(parse_ts(r["nominal_window_from"]) <= t <= parse_ts(r["fetched_at"])
+                    for r in log_rows if int(r["uid"]) == uid)
+    in_hole = any(parse_ts(h["hole_from"]) < t < parse_ts(h["hole_to"]) for h in hole_rows if int(h["uid"]) == uid)
+    return in_window and not in_hole
 
 
 def _log_row(pull_id, uid, fetched_at_s, st, n429, nother, git_commit):
@@ -430,45 +455,67 @@ def _print_summary(pulls, stats, new_rows):
         print(f"[collect] pull started_at range {min(starts_all)} -> {max(starts_all)}; new rows {len(new_rows)}")
 
 
-def apply_pulls(store_path, log_path, pulls, pull_id, git_commit, retries=None):
-    """Validate (already done by the caller), check holes, merge, guard, write both files. -> new rows."""
+class PullResult:
+    def __init__(self, new_rows, holes):
+        self.new_rows, self.holes = new_rows, holes
+
+
+def default_holes_path(log_path):
+    return Path(log_path).with_name("coverage_holes.csv")
+
+
+def apply_pulls(store_path, log_path, pulls, pull_id, git_commit, retries=None, holes_path=None):
+    """Validated pulls -> find holes, merge, guard, write the CSV, the holes file and the log. -> PullResult."""
+    holes_path = default_holes_path(log_path) if holes_path is None else Path(holes_path)
     old_store, store_cells = read_cells(store_path, COLUMNS)
+    old_holes, hole_cells = read_cells(holes_path, HOLES_COLUMNS)
     old_log, log_cells = read_cells(log_path, LOG_COLUMNS)
     store_rows = [decode_row(r) for r in store_cells]
+    hole_rows = [dict(zip(HOLES_COLUMNS, r)) for r in hole_cells]
     log_rows = [dict(zip(LOG_COLUMNS, r)) for r in log_cells]
-    check_consistency(store_rows, log_rows)
+    check_holes_file_present(holes_path, log_rows)
+    check_consistency(store_rows, log_rows, hole_rows)
     check_store_matches_log(store_rows, log_rows, live=False)
     if pull_id in {r["pull_id"] for r in log_rows}:
         raise CollectError(f"pull_id {pull_id} is already in the log")
-    check_holes(log_rows, {p["uid"]: parse_ts(p["fetched_at"]) for p in pulls})
+    holes = find_holes(log_rows, {p["uid"]: parse_ts(p["fetched_at"]) for p in pulls})
     new_rows, stats = merge(store_rows, pulls, pull_id)
     store_bytes = render_csv(COLUMNS, store_cells + [encode_row(r) for r in new_rows])
     retries = retries or {}
     log_bytes = render_csv(LOG_COLUMNS, log_cells + [
         _log_row(pull_id, p["uid"], p["fetched_at"], stats[p["uid"]], *retries.get(p["uid"], (0, 0)), git_commit)
         for p in pulls])
+    holes_bytes = render_csv(HOLES_COLUMNS, hole_cells + [
+        [pull_id, str(uid), regions.unit_from_api_uid(uid), fmt_ts(a), fmt_ts(b), git_commit] for uid, a, b in holes])
     check_append_only(old_store, store_bytes, Path(store_path).name)
+    check_append_only(old_holes, holes_bytes, holes_path.name)
     check_append_only(old_log, log_bytes, Path(log_path).name)
     _print_summary(pulls, stats, new_rows)
-    write_both(store_path, store_bytes, log_path, log_bytes)
+    write_all(store_path, store_bytes, holes_path, holes_bytes, log_path, log_bytes)
     print(f"[collect] pull {pull_id}: {len(new_rows)} new rows -> {store_path} "
           f"({len(store_cells) + len(new_rows)} rows); log +{len(pulls)} rows")
-    return new_rows
+    for uid, a, b in holes:
+        print(f"[collect] COVERAGE HOLE recorded: uid {uid} ({regions.unit_from_api_uid(uid)}) "
+              f"({fmt_ts(a)}, {fmt_ts(b)}) -> {holes_path}; collection continues (D-039 proposed)")
+    return PullResult(new_rows, holes)
 
 
-def collect(store_path, log_path, token, session, clock, git_commit):
-    """One live pull of the 24 units. Raises on any failure; then nothing is written."""
+def collect(store_path, log_path, token, session, clock, git_commit, holes_path=None):
+    """One live pull of the 24 units -> PullResult. Raises on any failure; then nothing is written. A coverage hole
+    does not raise: it is recorded and reported in PullResult.holes (the CLI then exits 3)."""
+    holes_path = default_holes_path(log_path) if holes_path is None else Path(holes_path)
     _, store_cells = read_cells(store_path, COLUMNS)
+    _, hole_cells = read_cells(holes_path, HOLES_COLUMNS)
     _, log_cells = read_cells(log_path, LOG_COLUMNS)
     log_rows = [dict(zip(LOG_COLUMNS, r)) for r in log_cells]
     store_rows = [decode_row(r) for r in store_cells]
-    check_consistency(store_rows, log_rows)
+    check_holes_file_present(holes_path, log_rows)
+    check_consistency(store_rows, log_rows, [dict(zip(HOLES_COLUMNS, r)) for r in hole_cells])
     check_store_matches_log(store_rows, log_rows, live=True)
     start = clock.now()
     pull_id = start.strftime("%Y-%m-%dT%H%MZ")
     if pull_id in {r["pull_id"] for r in log_rows}:                     # fail fast, before a ~48 min fetch
         raise CollectError(f"pull_id {pull_id} is already in the log")
-    check_holes(log_rows, {uid: start for uid in unit_uids()})
     fetched = fetch_all(token, session, clock)
     pulls, retries = [], {}
     for f in fetched:
@@ -476,10 +523,10 @@ def collect(store_path, log_path, token, session, clock, git_commit):
         pulls.append({"uid": f["uid"], "records": records, "fetched_at": fmt_ts(f["fetched_at"])})
         retries[f["uid"]] = (f["n_retries_429"], f["n_retries_other"])
     check_national_window(pulls)
-    return apply_pulls(store_path, log_path, pulls, pull_id, git_commit, retries)
+    return apply_pulls(store_path, log_path, pulls, pull_id, git_commit, retries, holes_path)
 
 
-def seed_from_dump(dump_dir, store_path, log_path, git_commit):
+def seed_from_dump(dump_dir, store_path, log_path, git_commit, holes_path=None):
     """One-off seed from a saved dump (manifest.tsv + uid_<N>.json). No network. Only into an empty datastore."""
     dump_dir = Path(dump_dir).resolve()
     if not dump_dir.name:
@@ -498,7 +545,7 @@ def seed_from_dump(dump_dir, store_path, log_path, git_commit):
         records = validate_pull(uid, payload, fetched_at)
         pulls.append({"uid": uid, "records": records, "fetched_at": fmt_ts(fetched_at)})
     check_national_window(pulls)
-    return apply_pulls(store_path, log_path, pulls, f"seed-{dump_dir.name}", git_commit)
+    return apply_pulls(store_path, log_path, pulls, f"seed-{dump_dir.name}", git_commit, holes_path=holes_path)
 
 
 # ---------------- views for consumers (plans/M6a.md §4.2) ----------------

@@ -4,6 +4,10 @@
     python scripts/collect_api.py --seed-from data/raw/alerts_in_ua/2026-10-12T1645Z   # one-off seed, no network
     python scripts/collect_api.py --dry-run                         # live pull into a scratch copy, repo untouched
 
+Exit codes: 0 = pulled; 3 = pulled and a coverage hole was recorded in --holes (D-039 proposed: collection continues,
+the workflow commits and then marks the run red; --dry-run also returns 3, writing only its scratch copy); any
+other = failed, nothing written.
+
 Token: env ALERTS_IN_UA_TOKEN, else the line `ALERTS_IN_UA_TOKEN=...` of --env-file (default: <repo>/.env).
 The token is never printed. Any failed check raises: nothing is written.
 """
@@ -55,32 +59,34 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--datastore", default=str(ROOT / "datastore"), help="directory holding alerts_in_ua.csv")
     ap.add_argument("--log", default=str(ROOT / "reports" / "collect" / "pull_log.csv"))
+    ap.add_argument("--holes", default=str(ROOT / "reports" / "collect" / "coverage_holes.csv"))
     ap.add_argument("--seed-from", help="saved dump directory (manifest.tsv + uid_<N>.json)")
     ap.add_argument("--dry-run", action="store_true", help="live pull into a scratch copy; write nothing in the repo")
     ap.add_argument("--env-file", default=str(ROOT / ".env"))
     args = ap.parse_args(argv)
 
     store = Path(args.datastore) / "alerts_in_ua.csv"
-    log = Path(args.log)
+    log, holes = Path(args.log), Path(args.holes)
     commit = git_head()
     if args.seed_from:
         if args.dry_run:
             raise C.CollectError("--seed-from and --dry-run cannot be combined")
-        C.seed_from_dump(args.seed_from, store, log, commit)
-        return
+        C.seed_from_dump(args.seed_from, store, log, commit, holes_path=holes)
+        return 0
     token = read_token(args.env_file)
     with requests.Session() as session:
         if args.dry_run:
             with tempfile.TemporaryDirectory() as tmp:
-                s2, l2 = Path(tmp) / "alerts_in_ua.csv", Path(tmp) / "pull_log.csv"
-                for src, dst in ((store, s2), (log, l2)):
+                s2, l2, h2 = Path(tmp) / "alerts_in_ua.csv", Path(tmp) / "pull_log.csv", Path(tmp) / "coverage_holes.csv"
+                for src, dst in ((store, s2), (log, l2), (holes, h2)):
                     if src.exists():
                         shutil.copy2(src, dst)
-                C.collect(s2, l2, token, session, C.SystemClock(), commit)
+                result = C.collect(s2, l2, token, session, C.SystemClock(), commit, holes_path=h2)
                 print("[collect] DRY RUN: nothing written in the repo")
         else:
-            C.collect(store, log, token, session, C.SystemClock(), commit)
+            result = C.collect(store, log, token, session, C.SystemClock(), commit, holes_path=holes)
+    return 3 if result.holes else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -1,6 +1,9 @@
 """M6a collector (plans/M6a.md §6): offline. HTTP via a fake session, time via a fake clock; no network."""
+import csv
 import dataclasses
 import json
+import os
+import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -168,9 +171,9 @@ def test_merge_versions_and_known_at_with_negative_control(tmp_path):
     corrected = rec(7, 31, d + timedelta(hours=7, minutes=50), d + timedelta(hours=10),
                     upd=d + timedelta(days=1, hours=12))
     C.apply_pulls(store, log, [pull(31, [open_v], d + timedelta(hours=9))], "p1", "c")
-    assert C.apply_pulls(store, log, [pull(31, [open_v], d + timedelta(hours=11))], "p1b", "c") == []   # 0 rows
+    assert C.apply_pulls(store, log, [pull(31, [open_v], d + timedelta(hours=11))], "p1b", "c").new_rows == []   # 0 rows
     assert len(C.apply_pulls(store, log, [pull(31, [closed_v], d + timedelta(days=1, hours=3, minutes=17))],
-                             "p2", "c")) == 1
+                             "p2", "c").new_rows) == 1
     C.apply_pulls(store, log, [pull(31, [corrected], d + timedelta(days=2, hours=3, minutes=17))], "p3", "c")
     rows = C.read_datastore(store)
     assert len(rows) == 3
@@ -402,7 +405,7 @@ def test_encoding_through_file_and_corrupt_cell(tmp_path):
     assert [rows[10 + i]["notes"] for i in range(len(variants))] == variants
     assert rows[20]["finished_at"] is None and rows[20]["location_raion"] == "R"
     assert "location_raion" not in rows[10]
-    assert C.apply_pulls(store, log, [pull(31, recs, T0 + timedelta(hours=1))], "p2", "c") == []   # reload == fetch
+    assert C.apply_pulls(store, log, [pull(31, recs, T0 + timedelta(hours=1))], "p2", "c").new_rows == []   # reload == fetch
     txt = store.read_text().replace("\\\\x", "\\x", 1)                                            # corrupt a cell
     store.write_text(txt)
     with pytest.raises(C.CollectError, match="corrupt cell"):
@@ -427,41 +430,84 @@ def test_real_datastore_empty_notes_witness():
 
 # ---------------- 9. coverage holes + crash recovery ----------------
 
-def test_coverage_holes(tmp_path):
+def test_coverage_holes_are_recorded_and_collection_continues(tmp_path):
     store, log = tmp_path / "s.csv", tmp_path / "l.csv"
+    holes = C.default_holes_path(log)
     t = datetime(2026, 10, 20, tzinfo=UTC)
-    C.apply_pulls(store, log, [pull(31, [], t)], "p0", "c")
-    C.apply_pulls(store, log, [pull(31, [], t + timedelta(days=1))], "p1", "c")
+    C.apply_pulls(store, log, [pull(31, [], t), pull(14, [], t)], "p0", "c")
+    assert holes.read_text() == ",".join(C.HOLES_COLUMNS) + "\n"                          # header-only, always written
+    C.apply_pulls(store, log, [pull(31, [], t + timedelta(days=1)), pull(14, [], t)], "p1", "c")
     # window_from = day 0.5: later than p0 (day 0) but not than the LATEST previous pull p1 (day 1) -> no hole
-    # (fails if check_holes compared with the earliest previous fetched_at instead of the latest)
-    C.apply_pulls(store, log, [pull(31, [], t + timedelta(days=30, hours=12))], "p_half", "c")
-    C.apply_pulls(store, log, [pull(31, [], t + timedelta(days=30, hours=13))], "p29", "c")
-    before = snapshot(store, log)
-    for k in range(2):                                                                    # stays failed
-        with pytest.raises(C.CollectError, match="COVERAGE HOLE"):
-            C.apply_pulls(store, log, [pull(31, [], t + timedelta(days=61))], f"hole{k}", "c")
-        assert snapshot(store, log) == before
+    # (records a hole if find_holes used the earliest previous fetched_at instead of the latest)
+    assert C.apply_pulls(store, log, [pull(31, [], t + timedelta(days=30, hours=12))], "p_half", "c").holes == []
+    # exactly 30 days after the previous pull: window_from == previous fetched_at -> no hole
+    assert C.apply_pulls(store, log, [pull(14, [], t + timedelta(days=30))], "p30", "c").holes == []
+    # 31 days after uid 31's last pull: the data IS written, one hole row with exact open-interval ends
+    a = rec(9, 31, t + timedelta(days=61, hours=-2), t + timedelta(days=61, hours=-1))
+    res = C.apply_pulls(store, log, [pull(31, [a], t + timedelta(days=61, hours=12))], "p_gap", "c")
+    assert len(res.new_rows) == 1 and 9 in {r["id"] for r in C.read_datastore(store)}
+    hr = list(csv.DictReader(open(holes)))
+    assert hr == [{"pull_id": "p_gap", "uid": "31", "unit": "kyiv_city", "hole_from": "2026-11-19T12:00:00Z",
+                   "hole_to": "2026-11-20T12:00:00Z", "git_commit": "c"}]
+    # next day: no new hole row
+    assert C.apply_pulls(store, log, [pull(31, [], t + timedelta(days=62, hours=12))], "p_next", "c").holes == []
+    assert len(list(csv.DictReader(open(holes)))) == 1
+    # endpoints: covered at both ends of the OPEN hole, not just inside
+    lg = C.read_log(log)
+    a_, b_ = C.parse_ts("2026-11-19T12:00:00Z"), C.parse_ts("2026-11-20T12:00:00Z")
+    assert C.covered(lg, hr, 31, a_) and C.covered(lg, hr, 31, b_)
+    assert not C.covered(lg, hr, 31, a_ + timedelta(seconds=1)) and not C.covered(lg, hr, 31, b_ - timedelta(seconds=1))
 
 
-def test_crash_between_renames_is_detected(tmp_path, monkeypatch):
-    store, log = tmp_path / "s.csv", tmp_path / "l.csv"
-    t = datetime(2026, 10, 20, 12, tzinfo=UTC)
-    C.apply_pulls(store, log, [pull(31, [], t)], "p0", "c")
-    real, calls = C.os.replace, []
+def crash_on(path, monkeypatch):
+    """Make os.replace raise when renaming onto `path` (simulates a crash before that rename)."""
+    real = C.os.replace
 
-    def crash_on_log(src, dst):
-        calls.append(dst)
-        if len(calls) == 2:
+    def fake(src, dst):
+        if Path(dst) == Path(path):
             raise OSError("simulated crash")
         return real(src, dst)
 
-    monkeypatch.setattr(C.os, "replace", crash_on_log)
+    monkeypatch.setattr(C.os, "replace", fake)
+    return real
+
+
+def test_crash_before_log_rename_is_detected_and_repair_restarts(tmp_path, monkeypatch):
+    store, log = tmp_path / "s.csv", tmp_path / "l.csv"
+    t = datetime(2026, 10, 20, 12, tzinfo=UTC)
+    C.apply_pulls(store, log, [pull(31, [], t)], "p0", "c")
+    holes = C.default_holes_path(log)
+    before = {p: p.read_bytes() for p in (store, holes)}
+    real = crash_on(log, monkeypatch)
     with pytest.raises(OSError):
         C.apply_pulls(store, log, [pull(31, [rec(5, 31, t - timedelta(hours=2), t - timedelta(hours=1))],
                                         t + timedelta(hours=1))], "p1", "c")
     monkeypatch.setattr(C.os, "replace", real)
-    with pytest.raises(C.CollectError, match="incomplete previous run"):
+    with pytest.raises(C.CollectError, match="incomplete previous run.*restore BOTH"):
         C.apply_pulls(store, log, [pull(31, [], t + timedelta(hours=2))], "p2", "c")
+    for p, b in before.items():                     # the repair: both files back to the last committed state
+        p.write_bytes(b)
+    assert C.apply_pulls(store, log, [pull(31, [], t + timedelta(hours=2))], "p2", "c").holes == []
+
+
+def test_first_hole_crash_with_zero_new_rows_repair_restarts(tmp_path, monkeypatch):
+    store, log = seeded(tmp_path)
+    holes = C.default_holes_path(log)
+    assert holes.exists()                            # the seed writes the header-only holes file
+    before = {p: p.read_bytes() for p in (store, holes)}
+    late = SEED_FETCH + timedelta(days=31)
+    pulls = [pull(u, [], late) for u in C.unit_uids()]
+    real = crash_on(log, monkeypatch)
+    with pytest.raises(OSError):
+        C.apply_pulls(store, log, pulls, "p_gap", "c")
+    monkeypatch.setattr(C.os, "replace", real)
+    assert holes.read_bytes() != before[holes]       # an orphan hole row was renamed in
+    with pytest.raises(C.CollectError, match="incomplete previous run"):
+        C.apply_pulls(store, log, pulls, "p_gap2", "c")
+    for p, b in before.items():
+        p.write_bytes(b)
+    res = C.apply_pulls(store, log, pulls, "p_gap2", "c")
+    assert len(res.holes) == 24 and res.new_rows == []
 
 
 # ---------------- 10. compatibility with src.data.api_alerts ----------------
@@ -544,3 +590,144 @@ def test_cli_env_file_styles(tmp_path, monkeypatch, line):
     f = tmp_path / ".env"
     f.write_text(f"# comment\n{line}\n")
     assert collect_api.read_token(f) == SECRET
+
+
+# ---------------- exit codes: CLI and the workflow, executed offline ----------------
+
+def run_cli(tmp_path, monkeypatch, clock, session):
+    from scripts import collect_api
+    monkeypatch.setenv("ALERTS_IN_UA_TOKEN", SECRET)
+    monkeypatch.setattr(collect_api, "git_head", lambda: "c")
+    monkeypatch.setattr(collect_api.C, "SystemClock", lambda: clock)
+
+    class Ctx:
+        def __enter__(self):
+            return session
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(collect_api.requests, "Session", Ctx)
+    return collect_api.main(["--datastore", str(tmp_path / "ds"), "--log", str(tmp_path / "pull_log.csv"),
+                             "--holes", str(tmp_path / "coverage_holes.csv")])
+
+
+def test_cli_exit_codes(tmp_path, monkeypatch):
+    seeded(tmp_path)
+    clock = FakeClock(LIVE_START)
+    assert run_cli(tmp_path, monkeypatch, clock, FakeSession(clock)) == 0
+    clock = FakeClock(LIVE_START + timedelta(days=31))
+    assert run_cli(tmp_path, monkeypatch, clock, FakeSession(clock)) == 3
+    assert len(list(csv.DictReader(open(tmp_path / "coverage_holes.csv")))) == 24
+    before = snapshot(tmp_path / "ds" / "alerts_in_ua.csv", tmp_path / "pull_log.csv", tmp_path / "coverage_holes.csv")
+    clock = FakeClock(LIVE_START + timedelta(days=32))
+    with pytest.raises(C.CollectError):
+        run_cli(tmp_path, monkeypatch, clock, FakeSession(clock, {3: [("status", 404, 1)]}))
+    assert snapshot(tmp_path / "ds" / "alerts_in_ua.csv", tmp_path / "pull_log.csv",
+                    tmp_path / "coverage_holes.csv") == before
+
+
+def workflow_steps():
+    """Minimal parser for .github/workflows/collect_api.yml steps (name / id / if / shell / run block)."""
+    text = (ROOT / ".github" / "workflows" / "collect_api.yml").read_text()
+    body = text.split("\n    steps:\n", 1)[1]
+    steps = []
+    for chunk in body.split("\n      - ")[1:]:
+        lines = chunk.splitlines()
+        st = {"name": lines[0].split("name:", 1)[1].strip()}
+        k = 1
+        while k < len(lines):
+            line = lines[k]
+            stripped = line.strip()
+            if stripped.startswith(("id:", "if:", "shell:")):
+                key, val = stripped.split(":", 1)
+                st[key] = val.strip()
+            elif stripped == "run: |":
+                block = []
+                k += 1
+                while k < len(lines) and (lines[k].startswith("          ") or not lines[k].strip()):
+                    block.append(lines[k][10:])
+                    k += 1
+                st["run"] = "\n".join(block).strip() + "\n"
+                continue
+            elif stripped.startswith("run:"):
+                st["run"] = stripped.split(":", 1)[1].strip() + "\n"
+            k += 1
+        steps.append(st)
+    return steps
+
+
+def condition(expr, code):
+    py = expr.replace("steps.collect.outputs.code", repr(code)).replace("||", " or ").replace("&&", " and ")
+    return eval(py, {"__builtins__": {}})          # only == / != on string literals
+
+
+def git(cwd, *args):
+    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout
+
+
+@pytest.mark.parametrize("code", ["0", "3", "1"])
+def test_workflow_routing_executed_against_a_bare_origin(tmp_path, code):
+    origin, work = tmp_path / "origin.git", tmp_path / "work"
+    git(tmp_path, "init", "-q", "--bare", "-b", "main", str(origin))
+    git(tmp_path, "init", "-q", "-b", "main", str(work))
+    for rel, txt in (("datastore/alerts_in_ua.csv", "h\n"), ("reports/collect/pull_log.csv", "pull_id\np0,1\n"),
+                     ("reports/collect/coverage_holes.csv", "pull_id\n")):
+        (work / rel).parent.mkdir(parents=True, exist_ok=True)
+        (work / rel).write_text(txt)
+    git(work, "-c", "user.name=t", "-c", "user.email=t@t", "add", ".")
+    git(work, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "init")
+    git(work, "remote", "add", "origin", str(origin))
+    git(work, "push", "-q", "origin", "main")
+    # stub collector: 0 -> new rows; 3 -> new rows + a hole row; 1 -> writes nothing
+    stub = tmp_path / "bin"
+    stub.mkdir()
+    (stub / "python").write_text(f"""#!/bin/bash
+if [ "{code}" != "1" ]; then echo "x" >> datastore/alerts_in_ua.csv; echo "p1,2" >> reports/collect/pull_log.csv; fi
+if [ "{code}" = "3" ]; then echo "p1,hole" >> reports/collect/coverage_holes.csv; fi
+exit {code}
+""")
+    (stub / "python").chmod(0o755)
+    env = {**os.environ, "PATH": f"{stub}:{os.environ['PATH']}", "GITHUB_OUTPUT": str(tmp_path / "out.txt")}
+    steps = workflow_steps()
+    names = [s["name"] for s in steps]
+    start = names.index("Pull alerts.in.ua history (24 units, 1 request / 2 min)")
+    events, outputs, job_ok = [], {}, True
+    for st in steps[start:]:
+        cond = st.get("if")
+        run_it = job_ok and (cond is None or condition(cond, outputs.get("code", "")))
+        if not run_it:
+            continue
+        script = st["run"].replace("${{ steps.collect.outputs.code }}", outputs.get("code", ""))
+        shell = ["bash", "--noprofile", "--norc"] if st.get("shell") == "bash {0}" else \
+            ["bash", "--noprofile", "--norc", "-eo", "pipefail"]
+        r = subprocess.run(shell + ["-c", script], cwd=work, env=env, capture_output=True, text=True)
+        events.append((st["name"], r.returncode))
+        if st.get("id") == "collect":
+            outputs = dict(l.split("=", 1) for l in (tmp_path / "out.txt").read_text().split())
+        if r.returncode != 0:
+            job_ok = False
+    pushed = git(tmp_path, "--git-dir", str(origin), "log", "--format=%s", "main").splitlines()
+    if code == "0":
+        assert job_ok and len(pushed) == 2
+        files = git(tmp_path, "--git-dir", str(origin), "show", "--name-only", "--format=", "main").split()
+        assert files == ["datastore/alerts_in_ua.csv", "reports/collect/pull_log.csv"]
+    elif code == "3":
+        assert not job_ok and len(pushed) == 2
+        files = git(tmp_path, "--git-dir", str(origin), "show", "--name-only", "--format=", "main").split()
+        assert "reports/collect/coverage_holes.csv" in files
+        assert [e[0] for e in events][-2:] == ["Commit the new rows", "Fail the run on a coverage hole or a failed pull"]
+        assert events[-2][1] == 0 and events[-1][1] != 0          # published BEFORE the run fails
+    else:
+        assert not job_ok and len(pushed) == 1                       # nothing published
+        assert "Commit the new rows" not in [e[0] for e in events]
+
+
+def test_deleted_holes_file_raises(tmp_path):
+    store, log = seeded(tmp_path)
+    C.default_holes_path(log).unlink()
+    clock = FakeClock(LIVE_START)
+    with pytest.raises(C.CollectError, match="coverage_holes.csv is missing"):
+        C.collect(store, log, SECRET, FakeSession(clock), clock, "c")
+    with pytest.raises(C.CollectError, match="coverage_holes.csv is missing"):
+        C.apply_pulls(store, log, [pull(31, [], LIVE_START)], "p", "c")

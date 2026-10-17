@@ -128,16 +128,33 @@ collection (the code that collected; the data commit itself comes later).
 - Coverage is NOMINAL: unit u is assumed covered on [nominal_window_from, fetched_at] of each pull, under the API
   contract of §8 (not documented; checked per pull only by the window check of §4.3). Event coverage
   ([nominal_window_from, fetched_at]) and knowledge time (`fetched_at`) are separate columns.
-- HOLE = a pull whose `nominal_window_from` is later than the unit's previous `fetched_at`. Per D-017 #6 a detected
-  gap fails the run and NOTHING is committed. Within the current rules there is no automatic recovery: every later
-  run fails the same way (the previous `fetched_at` never moves), so collection STOPS until the human decides
-  (GitHub e-mails the owner on every failed run). A hole needs ~29 consecutive failed days. A recovery path (a
-  human-acknowledged hole recorded in the log, then commit) would be an exception to CLAUDE.md Architecture #6 and
-  is asked of the human in §9, NOT built by default. The `accepted_hole_from/to` columns are therefore dropped.
-- Write order and crash recovery: both files are written to temp files, then the CSV is renamed, then the log.
-  At start, every `pull_id` in the CSV must exist in the log (a pull with 0 new rows has log rows only); otherwise
-  raise "incomplete previous run" with the repair (drop the CSV rows of that pull_id; nothing was committed). In
-  Actions the checkout is fresh and the commit happens only after both writes, so a crash commits nothing.
+- HOLE = a pull whose `nominal_window_from` is later than the unit's previous `fetched_at`. AUTOMATIC RESUME (the
+  human, 2026-10-17, proposed D-039; an explicit exception to CLAUDE.md Architecture #6 "detected gaps … nothing is
+  committed"): a detected hole does NOT stop collection. The run records one row per affected unit in the
+  append-only `reports/collect/coverage_holes.csv` (`pull_id, uid, unit, hole_from (= previous fetched_at),
+  hole_to (= new nominal_window_from), git_commit`), writes and commits the new data as usual, and then exits with
+  code 3, so the GitHub run is RED and the owner is e-mailed. The next run sees the new `fetched_at` and finds no
+  hole. Every other check still raises with nothing written. The fail-fast pre-check before the fetch is removed.
+- Hole interval = OPEN interval (hole_from, hole_to): both endpoints are covered by a pull window (pull windows are
+  closed [nominal_window_from, fetched_at]). Raw EVENT coverage of a unit = union of its pull windows minus its
+  holes.
+- Downstream contract (binding on M6b/M6c, not implemented in M6a): a hole is MISSING data, never "no alert". As with
+  the official recording gap (D-013, D-022, D-023): grid hours inside a hole are masked (y = NaN), plus a 24 h
+  post-hole uncertainty mask (an unrecorded alert could still be inside its first 24 h, D-020), and every feature
+  whose look-back window touches a hole is NaN/flagged; labels whose window (t, t+H] touches a hole are dropped.
+  Subtracting the hole from coverage does NOT make neighbouring rows eligible.
+- Holes file path: `--holes PATH` (default `reports/collect/coverage_holes.csv`). The file ALWAYS exists and is
+  tracked in git: every write (the seed included) writes at least its header, and M6a commits the header-only file
+  for the already-seeded datastore, so the crash repair `git checkout -- …` can always restore it. A missing file is
+  read as "no holes" (only possible before the first write); same
+  header check, byte-prefix append-only guard and atomic temp-file write as the log; `--dry-run` copies it into the
+  scratch dir with the CSV and the log, so a dry run never touches the real file.
+- Write order and crash recovery: all files are written to temp files, then renamed in the order CSV, holes file,
+  log (the log last). At start, every `pull_id` in the CSV AND in the holes file must exist in the log (a pull with 0 new rows has log rows only); otherwise
+  raise "incomplete previous run" with the repair: restore BOTH the CSV and the holes file to their last committed
+  state (`git checkout -- datastore/alerts_in_ua.csv reports/collect/coverage_holes.csv`; that run was never
+  committed), then re-run. In Actions the checkout is fresh and the commit happens only after all writes, so a
+  crash commits nothing.
 - The seed writes the log rows from the dump's `manifest.tsv` (24 unit UIDs, their real `fetched_at`).
 
 ## 5. Workflow `.github/workflows/collect_api.yml`
@@ -148,9 +165,11 @@ collection (the code that collected; the data commit itself comes later).
   worst successful collector run ≈ 64 min (§3) + setup/pytest/commit ≈ 5 min + margin).
 - Steps: checkout → setup-python 3.13 → `pip install -r requirements.txt` → `pytest -q tests/test_collect.py`
   (collector tests gate the fetch; failing test = no fetch, no commit) → `python scripts/collect_api.py` with
-  `ALERTS_IN_UA_TOKEN: ${{ secrets.ALERTS_IN_UA_TOKEN }}` → if the CSV or log changed: commit
+  `ALERTS_IN_UA_TOKEN: ${{ secrets.ALERTS_IN_UA_TOKEN }}` → if the CSV, the holes file or the log changed: stage ALL THREE in one commit:
   `data: alerts.in.ua pull <pull_id>` as `github-actions[bot]`, `git pull --rebase` then push (retry once). A
-  collector exit ≠ 0 stops the job before the commit step.
+  collector exit code decides: 0 → commit; 3 (coverage hole recorded) → commit, then a last step fails the job
+  (red run, e-mail); anything else → no commit, job fails. The collector step runs without `bash -e` and passes its
+  exit code to later steps as a step output. Change detection and `git add` list the three files explicitly.
 - No raw JSON is committed or uploaded; the CSV holds every field.
 - Scheduled workflows run from the default branch only, so the schedule starts once the human merges to `main`.
 - 403 fallback (only if the manual run gets 403): the human registers a self-hosted runner (e.g. the human's Mac, label
@@ -189,9 +208,24 @@ collection (the code that collected; the data commit itself comes later).
    in the file → read raises. Real-data witness: the 3 dump records with `notes = ""` (ids 266250, 262685, 262686)
    survive seed → write → reload with `notes == ""`, and merge → write → reload → re-merge of the SAME fetch adds 0
    rows and raises no content conflict (types canonical after reload).
-9. Coverage: pulls 1 day apart → no hole; 29 days apart → no hole; 31 days apart → raises, CSV and log
-   byte-identical, and a second attempt raises again.
-   Crash recovery: CSV renamed but log not (simulated) → the next run raises "incomplete previous run".
+9. Coverage: pulls 1 day apart → no hole; 29 days apart → no hole; a pull 30.5 days after p0 but 29.5 after p1 → no
+   hole (max-vs-min control); 31 days apart → the data IS written, `coverage_holes.csv` gets exactly one row per
+   affected unit with exact `hole_from`/`hole_to`, `collect()` reports the hole (CLI exit code 3); a next-day pull
+   adds no hole row. A wrong-direction control: a pull exactly 30 days after the previous one records no hole.
+   Endpoint test: with a recorded hole (a, b), points a and b are covered, a + 1 s and b − 1 s are not
+   (helper `covered(log, holes, uid, t)`).
+   Crash recovery: CSV (or holes file) renamed but log not (simulated) → the next run raises "incomplete previous
+   run"; restoring both files to the pre-run state (the repair) lets the next run succeed — also for a crashed pull
+   that added 0 alert rows but a hole row.
+   First-hole crash: the seed fixture creates the header-only holes file; a crash after the CSV and holes renames
+   but before the log rename on the FIRST hole → restoring both files to their pre-run bytes → the next run succeeds.
+   Exit codes, executed offline: the CLI `main()` (fake session/clock) returns 0 for a normal pull, 3 when a hole
+   was recorded (files written), and raises/non-zero with nothing written on a failure. Workflow, executed offline
+   with a local bare git repo as `origin` (no network) and a stub collector exiting 0 / 3 / 1: the steps run in YAML
+   order with their `if:` conditions evaluated for the stub's code, using the real `run:` shell text. Assert: 0 →
+   one new commit on origin/main containing exactly the changed files among the three, job succeeds; 3 → the commit
+   (with `coverage_holes.csv`) reaches origin BEFORE the final step fails the job; 1 → no commit on origin, job
+   fails.
 10. Compatibility: rows of the datastore, deduplicated by D-027, converted to records with `_file_uid =
    requested_uid`, go through `src.data.api_alerts` (read-only import) and give the same frame as the fixture dump
    read with `src.data.read_api_dump`. Proves M6b can load the file without `src` changes to the alert format.
@@ -231,9 +265,12 @@ Every API call is made only after the human approves it at implementation time (
 ## 9. Open questions (design, for the loop)
 - Seed or not: the plan seeds (saves 2026-09-12 → 09-18, unrecoverable otherwise).
 - New `alert_type` values: store (plan) vs raise.
+- ANSWERED by the human 2026-10-17: (a) yes, commit open versions (proposed D-038); (c) yes, resume automatically
+  after a hole (proposed D-039, §4.4). Original questions kept below for the record.
 - For the human (not decided by the loop): (a) confirm that committing OPEN versions is covered by D-027 /
   CLAUDE.md line 139 "API merge rule (M4/M6) … KEEP open alerts" (D-016 still says "closed alerts");
   (b) [settled 2026-10-17: same token, collector at 1 request / 2 min, proposed D-037];
   (c) RULE-EXCEPTION QUESTION: after a coverage hole (~29 failed days), should a human-acknowledged hole be
   recorded and collection resume (exception to CLAUDE.md Architecture #6 "detected gaps … nothing is committed"),
-  or does collection stay stopped until a rule change? The plan builds the strict version.
+  or does collection stay stopped until a rule change? SUPERSEDED: D-039 (automatic resume) governs; the strict
+  version is no longer built.

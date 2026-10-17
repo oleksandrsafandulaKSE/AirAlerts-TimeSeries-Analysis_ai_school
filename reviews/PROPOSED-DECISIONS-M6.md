@@ -25,3 +25,13 @@ Numbers start at D-033 because D-028–D-032 are already proposed by M4, M5, M7,
 ## D-037 — Collector shares the M8 token (me, 2026-10-17)
 - Same `ALERTS_IN_UA_TOKEN`, collector at 1 history request / 2 min (M8: 1/min; limit 2/min). Bursts are
   possible, and 429s are retried and logged. A second token only if 429s appear.
+
+## D-038 — M6 commits open alert versions (me, 2026-10-17)
+- Confirms D-027 for the datastore: open versions (empty `finished_at`) are committed. Supersedes D-016's wording
+  "CSV of closed alerts".
+
+## D-039 — Collection resumes automatically after a coverage hole (me, 2026-10-17)
+- Exception to CLAUDE.md Architecture #6 ("detected gaps … nothing is committed"), for the collector only. A detected
+  hole is recorded per unit in `reports/collect/coverage_holes.csv`, the new data is committed, and the run then ends
+  red (exit code 3, so GitHub e-mails the owner). Coverage = the pulls' windows minus the recorded holes. Every
+  other data check still fails the run with nothing committed.

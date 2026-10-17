@@ -1,0 +1,10 @@
+[codex] I’ll check each previous finding against the updated plan and builder response, then check the provisional decisions a
+[codex] > 'cat plans/M6-site.md reviews/M6-site-codex-r1.md reviews/M6-site-claude-r1.md plans/M6-definition.m
+[codex] > 'wc -l reviews/M6-site-codex-r1.md reviews/M6-site-claude-r1.md CLAUDE.md DECISIONS.md plans/M6-defi
+[codex] The plan addresses the level-versioning and hover gaps. I’m checking two remaining concerns: whether restricting typed
+[codex] > "cat .claude/skills/ts-leakage-audit/SKILL.md; cat netlify/live/lib/live.mjs netlify/live/lib/featur
+[codex] I’m applying the repository’s `ts-leakage-audit` skill. The proposed truncation tests cover late ends, level backfil
+[codex] ## PREVIOUS ITEMS
+Reading prompt from stdin...
+session_id=01a14bb8-3944-76b1-97e3-eb645376d61c
+output_path=reviews/M6-site-codex-r2.md

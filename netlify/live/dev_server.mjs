@@ -9,6 +9,7 @@ const root = new URL("../../", import.meta.url);
 const model = JSON.parse(readFileSync(new URL("netlify/live/model/model_live.json", root)));
 const regions = JSON.parse(readFileSync(new URL("netlify/live/data/regions.json", root)));
 const seed = JSON.parse(readFileSync(new URL("netlify/live/data/seed_state.json", root)));
+const monthly = JSON.parse(readFileSync(new URL("netlify/live/data/typed_monthly.json", root)));
 const m = new Map();
 const store = { async get(k) { return m.has(k) ? JSON.parse(m.get(k)) : null; },
                 async setJSON(k, v) { m.set(k, JSON.stringify(v)); }, async delete(k) { m.delete(k); },
@@ -25,7 +26,7 @@ async function tick() {
 createServer(async (req, res) => {
   if (req.url.startsWith("/api/forecast")) {
     res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
-    return res.end(JSON.stringify(await readPayload(store)));
+    return res.end(JSON.stringify(await readPayload(store, monthly)));
   }
   if (req.url === "/" || req.url.startsWith("/index.html")) {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });

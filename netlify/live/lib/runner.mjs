@@ -1,5 +1,6 @@
 // One scheduled update (plans/M8.md §2), with injected fetch / store / clock so it can be tested without network.
 import { applyActive, applyHistory, forecastAll, nextRotationUnit } from "./live.mjs";
+import { validMonthly } from "./typed.mjs";
 
 export const API = "https://api.alerts.in.ua/v1";
 const HOUR = 3600e3, SNAPSHOT_DAYS = 7, FETCH_TIMEOUT = 8000;
@@ -15,9 +16,10 @@ async function getJSON(fetchFn, url, token, timeoutMs) {
 
 export const snapshotKey = (t) => `snap/${new Date(Math.floor(t / HOUR) * HOUR).toISOString().slice(0, 13)}`;
 
-export async function runUpdate({ fetchFn, store, token, now, model, regions, seed, timeoutMs = FETCH_TIMEOUT }) {
+// typedModel: null (no typed model yet: baseline only, w = 0) or a list of model versions (plans/M6-site.md §5)
+export async function runUpdate({ fetchFn, store, token, now, model, regions, seed, timeoutMs = FETCH_TIMEOUT, typedModel = null }) {
   const status = { ok: false, at: now, active_alerts: null, excluded: null, rejected: [], history_unit: null,
-                   history_ok: null, history_failing: [], error: null };
+                   history_ok: null, history_failing: [], error: null, level_unknown: 0, typed_error: null };
   if (!token) {                                        // visible on the page, then the run fails
     status.error = "configuration: ALERTS_IN_UA_TOKEN is not set";
     await store.setJSON("status", status);
@@ -34,6 +36,7 @@ export async function runUpdate({ fetchFn, store, token, now, model, regions, se
     status.active_alerts = active.alerts.length;
     status.excluded = res.skipped;
     status.rejected = res.rejected.map(r => ({ ...r, from: "active" }));
+    status.level_unknown += res.levelUnknown;
   } catch (e) {
     status.error = `active: ${e.message}`;
     await store.setJSON("status", status);
@@ -45,6 +48,7 @@ export async function runUpdate({ fetchFn, store, token, now, model, regions, se
     const h = await getJSON(fetchFn, `${API}/regions/${regions.api_uid[unit]}/alerts/month_ago.json`, token, timeoutMs);
     const res = applyHistory(state, unit, h.alerts, now, regions);
     status.rejected.push(...res.rejected.map(r => ({ ...r, from: "history" })));
+    status.level_unknown += res.levelUnknown;
     status.history_ok = true;
     state.historyFail[unit] = 0;
   } catch (e) {
@@ -53,7 +57,8 @@ export async function runUpdate({ fetchFn, store, token, now, model, regions, se
     state.historyFail[unit] = (state.historyFail[unit] || 0) + 1;
   }
   status.history_failing = Object.entries(state.historyFail).filter(([, n]) => n >= 2).map(([u, n]) => ({ unit: u, consecutive: n }));
-  const forecast = forecastAll(state, now, model, regions);
+  const forecast = forecastAll(state, now, model, regions, typedModel);
+  status.typed_error = forecast.typed.error || null;          // the "any" forecast is still written (typed is in training)
   status.ok = true;
   await store.setJSON("state", state);
   await store.setJSON("latest", forecast);
@@ -65,7 +70,11 @@ export async function runUpdate({ fetchFn, store, token, now, model, regions, se
   return status;
 }
 
-export async function readPayload(store) {
+// typed_monthly: the monthly chart data (netlify/live/data/typed_monthly.json, plans/M6-site.md §5). A bad file never
+// breaks the main GET: it is replaced by null and the error is returned next to it (the page says so).
+export async function readPayload(store, monthly = { schema: 1, months: [] }) {
+  let typed_monthly = monthly, typed_monthly_error = null;
+  try { validMonthly(monthly); } catch (e) { typed_monthly = null; typed_monthly_error = e.message.slice(0, 200); }
   const [status, forecast] = await Promise.all([store.get("status", { type: "json" }), store.get("latest", { type: "json" })]);
-  return { status, forecast };
+  return { status, forecast, typed_monthly, typed_monthly_error };
 }

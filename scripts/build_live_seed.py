@@ -4,6 +4,8 @@
 
 Records: all alert types (human decision), first seen and end known at their file's fetch time; coverage per unit =
 [fetched_at - 30 d, fetched_at). Excluded units (Luhanska, Crimea, Sevastopol) are dropped.
+M6 (plans/M6-site.md §2): each record keeps its alert_level as a version [[fetched_at, level]], and the typed coverage
+`levelCoverage` equals `coverage` (the dump has the levels for its whole window).
 """
 import json
 import sys
@@ -51,10 +53,11 @@ def main():
             "start": ms(r.started_at), "end": None if pd.isna(r.finished_at) else ms(r.finished_at),
             "updated": ms(pd.Timestamp(raw["updated_at"])), "firstSeen": f,
             "endKnown": None if pd.isna(r.finished_at) else f, "endSource": None if pd.isna(r.finished_at) else "history",
-            "absent": []}
+            "absent": [], "levels": [[f, r.alert_level]] if r.alert_level in ("yellow", "red") else []}
     for u in regions.units():
         f = ms(fetched[uid_of[u]])
         state["coverage"][u] = [[f - 30 * 24 * 3600 * 1000, f, f]]   # [from, to, confirmed at]
+    state["levelCoverage"] = {u: [list(b) for b in v] for u, v in state["coverage"].items()}
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "seed_state.json").write_text(json.dumps(state, separators=(",", ":")))
     (OUT / "regions.json").write_text(json.dumps(regions_json(), ensure_ascii=False, indent=1))

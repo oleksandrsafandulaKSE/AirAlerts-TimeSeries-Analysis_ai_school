@@ -124,6 +124,8 @@ header.board { border-top: 2px solid var(--ink); padding-top: 18px; }
 .card { display: grid; gap: 8px; }
 .card .big { font: 700 var(--step-3)/1 var(--f-data); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .card dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 0; font-size: var(--step--1); color: var(--ink-2); }
+.card .typed { display: grid; gap: 6px; border-top: 1px solid var(--rule); padding-top: 8px; }
+.card .typed .tag { display: inline-block; margin-left: 6px; vertical-align: 1px; }
 .card dd { margin: 0; text-align: right; font-family: var(--f-data); font-variant-numeric: tabular-nums; color: var(--ink); }
 .toplist { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: var(--step--1); }
 .toplist button { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 10px; background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 6px 2px; font: inherit; color: var(--ink); cursor: pointer; text-align: left; }
@@ -598,6 +600,47 @@ const ago = ms => ms < 90e3 ? "just now" : ms < 90 * 60e3 ? `${Math.round(ms / 6
 const mins = m => m === null ? "n/a" : m < 60 ? `${Math.round(m)} min ago` : m < 48 * 60 ? `${Math.floor(m / 60)} h ${Math.round(m % 60)} min ago` : `${Math.round(m / 1440)} days ago`;
 const live = {payload: null, error: null, sel: null};
 const liveStale = (P, now) => !P || !P.status || !P.forecast || P.status.ok === false || now - P.forecast.tau > STALE_AFTER;
+// ---------- typed forecasts (M6, plans/M6-site.md §4): oblast tooltip + card only, never the main view ----------
+/* typed-block:start (pure functions; extracted and tested by netlify/live/test/typed.test.mjs) */
+const TYPED_NAME = {yellow: "Yellow (drones)", red: "Red (missiles)"};
+const tEsc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const tNum = v => typeof v === "number" && Number.isFinite(v);
+const tPct = p => !tNum(p) ? "n/a" : p < 0.01 ? "<1%" : Math.round(100 * p) + "%";
+const tDate = t => !tNum(t) ? "n/a" : new Date(t).toLocaleDateString("en-GB", {timeZone: "Europe/Kyiv", day: "numeric", month: "short", year: "numeric"});
+function typedValue(level, y) {
+  if (!y) return "n/a";
+  return y.state === "forecast" ? tEsc(tPct(y.p)) : y.state === "level_active" ? `${level} alert running` : "data gap";
+}
+function typedMode(meta) {
+  if (meta.mode === "blend") {
+    const w = ["yellow", "red"].map(l => meta.weights && meta.weights[l] ? `${l} w = ${tNum(meta.weights[l].w) ? meta.weights[l].w.toFixed(2) : "n/a"}` : `${l} w = 0`);
+    return `blend of model ${tEsc(meta.model ? meta.model.version : "?")} and the two-week rate per type (${w.join(", ")})`;
+  }
+  return "baseline only: two-week rate per type; model in training (blend weight 0)";
+}
+function typedTipHtml(x, meta) {
+  if (!x || !meta) return "";
+  if (meta.mode === "error") return `<br><span class="muted">Yellow/red forecast unavailable (${tEsc(meta.label || "in training")})</span>`;
+  return `<br>${TYPED_NAME.yellow}: ${typedValue("yellow", x.yellow)} · ${TYPED_NAME.red}: ${typedValue("red", x.red)}`
+    + `<br><span class="muted">${tEsc(meta.label || "in training")}, ${meta.mode === "blend" ? "blend" : "baseline only"}</span>`;
+}
+function typedCardHtml(x, meta, monthly, monthlyError) {
+  if (!x || !meta) return "";
+  if (meta.mode === "error") return `<div class="typed"><div class="eyebrow">Yellow (drones) / Red (missiles) <span class="tag">${tEsc(meta.label || "in training")}</span></div>`
+    + `<p class="small">The yellow/red forecast is unavailable right now (error: ${tEsc(meta.error)}). The main forecast above is not affected.</p></div>`;
+  const row = l => { const y = x[l]; const few = y && (y.caution || []).includes("few_hours") ? " *" : "";
+    return `<dt>${TYPED_NAME[l]}</dt><dd>${typedValue(l, y)}${few}</dd>`; };
+  const nMonths = monthly && Array.isArray(monthly.months) ? new Set(monthly.months.filter(m => m && m.month).map(m => m.month)).size : 0;
+  const since = meta.history_since === null || meta.history_since === undefined ? "" : ` since ${tDate(meta.history_since)}`;
+  return `<div class="typed"><div class="eyebrow">Yellow (drones) / Red (missiles) <span class="tag">${tEsc(meta.label || "in training")}</span></div>`
+    + `<p class="muted small">Chance that an alert of that level starts in the next 60 minutes. Levels as marked by alerts.in.ua; all alert types, as on the main map.</p>`
+    + `<dl>${row("yellow")}${row("red")}</dl>`
+    + `<p class="small">${typedMode(meta)}.${["yellow", "red"].some(l => x[l] && (x[l].caution || []).includes("few_hours")) ? " * fewer than 48 forecastable hours in the last 14 days." : ""}</p>`
+    + `<p class="small muted">Collecting data: ${tNum(meta.history_days) ? meta.history_days : "n/a"} days of yellow/red history in total${since} (live collection, counting only time complete for all oblasts; the training copy is the project's daily datastore).</p>`
+    + `<p class="small muted">Monthly track record (Brier skill vs the two-week rate per type, and the blend weight): `
+    + (monthlyError ? `unavailable (data file error).` : nMonths ? `${nMonths} month${nMonths > 1 ? "s" : ""} available.` : `available after the first monthly retrain.`) + `</p></div>`;
+}
+/* typed-block:end */
 function liveCard(u, F) {
   const x = F && F.units[u];
   if (!x) return `<div class="eyebrow">${esc(D.units[u].name)}</div><p class="muted">No live forecast loaded.</p>`;
@@ -614,12 +657,14 @@ function liveCard(u, F) {
     <dt>Alerts started, last 24 h</dt><dd>${x.alerts_last_24h === null ? "n/a" : Number(x.alerts_last_24h)}</dd>
     <dt>Last alert started</dt><dd>${mins(x.minutes_since_last_start)}</dd>
     <dt>Alert listed as active now</dt><dd>${x.physical_alert ? "yes" : "no"}</dd>
-    <dt>History confirmed up to</dt><dd>${x.confirmed_until === null ? "n/a" : kyiv(x.confirmed_until)}</dd></dl>`;
+    <dt>History confirmed up to</dt><dd>${x.confirmed_until === null ? "n/a" : kyiv(x.confirmed_until)}</dd></dl>`
+    + (liveStale(live.payload, Date.now()) ? "" : typedCardHtml(x.typed, F.typed, live.payload && live.payload.typed_monthly, live.payload && live.payload.typed_monthly_error));
 }
 function liveTip(u, F) {
   const x = F && F.units[u]; if (!x) return `<b>${esc(D.units[u].name)}</b>`;
   const s = x.state === "forecast" ? `Chance of a new alert in the next 60 min: <b>${pct(x.p)}</b>` : x.state === "alert_running" ? "Alert running: no forecast" : "Data gap: no forecast";
-  return `<b>${esc(D.units[u].name)}</b><br>${s}${x.physical_alert ? "<br>Alert listed as active now" : ""}<br>Two-week rule: ${x.recent_rate === null ? "n/a" : pct(x.recent_rate)}`;
+  return `<b>${esc(D.units[u].name)}</b><br>${s}${x.physical_alert ? "<br>Alert listed as active now" : ""}<br>Two-week rule: ${x.recent_rate === null ? "n/a" : pct(x.recent_rate)}`
+    + (liveStale(live.payload, Date.now()) ? "" : typedTipHtml(x.typed, F.typed));
 }
 function drawLive() {
   const P = live.payload, F = P && P.forecast, now = Date.now(), stale = liveStale(P, now);

@@ -1,0 +1,18 @@
+[codex] I’ll read the plan, project rules, decision log, and leakage-audit skill first, then check relevant code and tests for
+[codex] > 'pwd && cat plans/M6a.md CLAUDE.md DECISIONS.md .claude/skills/ts-leakage-audit/SKILL.md'
+[codex] > "rg --files -g AGENTS.md -g '*leakage*' -g '*collect*' -g '*netlify*' -g '*live*'; nl -ba src/region
+[codex] > 'nl -ba CLAUDE.md'
+[codex] > 'nl -ba DECISIONS.md'
+[codex] The main risks are in the collector’s provenance and failure rules: it claims complete coverage from an unverified API
+[codex] > "sed -n '90,175p' DECISIONS.md; rg --files -g AGENTS.md -g '*leakage*' -g '*collect*' -g '*live*' -g
+[codex] > "ls -la data/raw/alerts_in_ua/2026-10-12T1645Z; cat requirements.txt; cat .gitignore; rg -n 'rate|in
+[codex] > "ls -ld data/raw/alerts_in_ua/2026-10-12T1645Z; cat requirements.txt; cat .gitignore; rg -n 'rate|in
+[codex] > "sed -n '1,180p' tests/test_leakage.py; rg -n 'api|open|standing|kyiv|truncate|DST|gap' tests/test_a
+[codex] > "rg --files netlify/live netlify/functions -g '*.mjs' -g '"'!*.test.mjs'"'; cat netlify/functions/up
+[codex] > "rg --files tests | rg 'api|live'; sed -n '1,80p' src/regions.py; git status --short; ls -ld .venv d
+[codex] I’m applying the leakage-audit skill to the “known at t” claim. The planned compatibility test uses the globally l
+[codex] > "sed -n '1,220p' netlify/live/lib/runner.mjs; sed -n '1,140p' tests/test_api_loader.py"
+[codex] ## BLOCKERS
+Reading prompt from stdin...
+session_id=01a14aee-1e6a-7980-8090-2d8fc43ca50c
+output_path=reviews/M6a-codex-r1.md

@@ -1,5 +1,7 @@
 """M6-site parity (plans/M6-site.md §6): the JavaScript per-type (yellow / red) rolling recent-rate baseline and per-type
-state on the live site equal the Python definitions on the real API dump (all alert types, as M8) at many moments tau.
+state on the live site equal the Python definitions on the real API dump at many moments tau. Yellow/red count air-raid
+alerts only (human decision 2026-10-18): the JS side receives ALL records (artillery included) and must filter itself;
+the Python expectation is computed on air_raid only.
 
 Python reference: `improve/live_ref.live_offset` (the M8 offset definition: 14-day window of eligible, already-known
 labels, shrunk toward the unit's expanding rate) run on the dump restricted to ONE alert level, so a typed onset is the
@@ -36,7 +38,12 @@ def api():
     raw = {str(r["id"]): r["alert_type"] for r in records}
     al["alert_type"] = al["alert_id"].map(raw)
     assert al["alert_type"].notna().all() and set(al["alert_level"]) == {"yellow", "red"}
+    assert (al["alert_type"] == "artillery_shelling").any()       # so the JS type filter is exercised
     return al
+
+
+def air(al):
+    return al[al["alert_type"] == "air_raid"]
 
 
 def truncate(al, t):
@@ -85,7 +92,7 @@ def taus(al):
     rng = np.random.default_rng(11)
     lo, hi = pd.Timestamp("2026-09-21", tz="UTC"), pd.Timestamp("2026-10-12 15:00", tz="UTC")
     rand = [lo + pd.Timedelta(minutes=int(m)) for m in rng.integers(0, int((hi - lo) / pd.Timedelta(minutes=1)), 18)]
-    pin, _ = pinned(al)
+    pin, _ = pinned(air(al))
     return rand + pin
 
 
@@ -118,9 +125,9 @@ def test_js_typed_baseline_matches_python(api):
     units = regions.units()
     checked, states = 0, {}
     for t, res in zip(ts_list, js):
-        assert res["meta"]["alert_types"] == ["air_raid", "artillery_shelling", "urban_fights", "chemical", "nuclear"]
+        assert res["meta"]["alert_types"] == ["air_raid"]
         for level in ("yellow", "red"):
-            tr = truncate(api[api.alert_level == level], t)
+            tr = truncate(air(api)[air(api).alert_level == level], t)
             off = live_ref.live_offset(tr, t, CFG.history_start, GAPS, units=units)
             for u in units:
                 o, j = off[u], res["units"][u][level]
@@ -138,9 +145,19 @@ def test_js_typed_baseline_matches_python(api):
 
 def test_red_onset_during_yellow_counts_for_red(api):
     """The pinned witness: a red onset inside a yellow interval is a red onset (per-type eligibility, M6-definition)."""
-    _, row = pinned(api)
+    _, row = pinned(air(api))
     t = row.started_at + 3 * H
     js = run_js(api, [t])[0]["units"][row.unit]["red"]
     without = api[api.alert_id != row.alert_id]
     js_without = run_js(without, [t])[0]["units"][row.unit]["red"]
     assert js["recent_k"] == js_without["recent_k"] + 1, (js, js_without)
+
+
+def test_artillery_is_not_counted_for_yellow_red(api):
+    """Dnipropetrovska: red artillery alerts would hide red air-raid onsets; with air_raid only they do not."""
+    t = pd.Timestamp("2026-10-12 15:00", tz="UTC")
+    j = run_js(api, [t])[0]["units"]["dnipropetrovska"]["red"]
+    j_air = run_js(air(api), [t])[0]["units"]["dnipropetrovska"]["red"]
+    assert (j["recent_k"], j["recent_n"]) == (j_air["recent_k"], j_air["recent_n"]) == (11, 18)
+    # with all types counted (the rule before 2026-10-18) the same moment would rest on k = 3 of n = 4 hours: red
+    # artillery keeps the oblast "under red" almost all the time (checked with improve/live_ref.py)

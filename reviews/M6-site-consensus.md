@@ -8,8 +8,9 @@ Codex final verdict (reviews/M6-site-codex-r4.md), verbatim: `VERDICT: AGREE`
 
 ## Human ratification (chat, 2026-10-18)
 - P2–P8: **approved** ("approve p2-p8").
-- P1 (alert types for yellow/red): **open**. The human asked to check it against M10 (non-air-raid rows); findings in
-  plans/M6-site.md "Open questions for the human".
+- P1 (alert types for yellow/red): **decided by the human: air-raid alerts only** ("Yes: yellow/red count air_raid
+  alerts only, matching M6c-1"), after the check against M10 / M6c-1 in plans/M6-site.md. Replaces the consensus P1
+  (all API types). The "any" map keeps all types.
 - Levels changed in place by the API: **keep the latest version** (the current behaviour).
 - D-040 entry: **yes** (reviews/PROPOSED-DECISIONS-M6.md).
 

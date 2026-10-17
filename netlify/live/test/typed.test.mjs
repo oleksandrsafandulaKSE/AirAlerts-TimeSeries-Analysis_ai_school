@@ -94,13 +94,14 @@ test("per-type eligibility, hand-computed: red onset inside yellow counts for re
   assert.deepEqual([f.units.lvivska.red.recent_k, f.units.lvivska.red.recent_n], [0, 48]);
   // the same through offsetAt directly on the yellow-only intervals (the typed path adds nothing else)
   assert.equal(f.meta.mode, "baseline_only");
-  assert.deepEqual(f.meta.alert_types, ALERT_TYPES);
-  assert.equal(TYPED_ALERT_TYPES, ALERT_TYPES);
+  assert.deepEqual(f.meta.alert_types, ["air_raid"]);                       // human decision 2026-10-18
+  assert.deepEqual(TYPED_ALERT_TYPES, ["air_raid"]);
+  assert.ok(ALERT_TYPES.length > 1);                                        // the "any" map keeps all types
   assert.equal(f.meta.history_days, 3);
   assert.equal(f.meta.history_since, HS);
 });
 
-test("states: red running -> red level_active while yellow is forecast; artillery counts; other types ignored", () => {
+test("states: red running -> red level_active while yellow is forecast; artillery is not counted for yellow/red", () => {
   const s = base({ odeska: [A("r2", "odeska", T0 - 30 * MIN, null, "red")],
                    sumska: [A("art", "sumska", T0 - 20 * MIN, null, "red", "artillery_shelling")] });
   const f = typed(s, T0);
@@ -108,7 +109,8 @@ test("states: red running -> red level_active while yellow is forecast; artiller
   assert.equal(f.units.odeska.red.p, null);
   assert.ok(f.units.odeska.red.p_baseline > 0);                            // the two-week rate is still reported
   assert.equal(f.units.odeska.yellow.state, "forecast");
-  assert.equal(f.units.sumska.red.state, "level_active");                  // all approved types, as M8's "any"
+  assert.equal(f.units.sumska.red.state, "forecast");                      // air-raid only (human, 2026-10-18) ...
+  assert.equal(forecastAll(s, T0, model, regions).units.sumska.state, "alert_running");   // ... the "any" map counts it
   // the "any" view of the same unit: an alert is running, so no "any" forecast, but the typed yellow forecast exists
   const any = forecastAll(s, T0, model, regions);
   assert.equal(any.units.odeska.state, "alert_running");
@@ -229,7 +231,7 @@ test("truncation: ends, levels and coverage known only after tau are invisible a
 });
 
 // ---- model plug-in contract (plan §5)
-const stub = (o = {}) => ({ version: "v1", trained_through: T0 - 2 * D, available_at: T0 - D, alert_types: [...ALERT_TYPES],
+const stub = (o = {}) => ({ version: "v1", trained_through: T0 - 2 * D, available_at: T0 - D, alert_types: ["air_raid"],
   horizon_minutes: 60, predict: () => 0.2, weight: () => ({ n: 50, n0: N0, wStar: 0.8 }), ...o });
 
 test("blend weight and blend, by hand", () => {
@@ -258,7 +260,7 @@ test("model plug-in: blend mode, causal version selection, and every rejection",
   assert.equal(selectModel([stub(), late], T0 + H).version, "v2");
   assert.equal(typed(s, T0, [], [late]).meta.mode, "baseline_only");
   assert.equal(typed(s, T0, [], [late]).units.lvivska.yellow.p, typed(s, T0).units.lvivska.yellow.p);
-  assert.throws(() => typed(s, T0, [], [stub({ alert_types: ["air_raid"] })]), /alert_types/);
+  assert.throws(() => typed(s, T0, [], [stub({ alert_types: [...ALERT_TYPES] })]), /alert_types/);   // all types != air_raid
   assert.throws(() => typed(s, T0, [], [stub({ horizon_minutes: 180 })]), /horizon/);
   assert.throws(() => typed(s, T0, [], [stub({ trained_through: T0 - D })]), /available_at/);     // malformed
   assert.throws(() => typed(s, T0, [], [stub({ predict: () => 1 })]), /outside/);
@@ -309,7 +311,7 @@ test("page: tooltip and card text for baseline-only, level-active, data-gap and 
   const card = typedCardHtml(x, meta, { schema: 1, months: [] });
   for (const s of ["in training", "baseline only: two-week rate per type; model in training (blend weight 0)",
                    "Collecting data: 35 days of yellow/red history in total since 12 Sept 2026", "available after the first monthly retrain",
-                   "all alert types, as on the main map"]) assert.ok(card.includes(s), s);
+                   "air-raid alerts only (the main map counts all alert types)"]) assert.ok(card.includes(s), s);
   const gap = typedCardHtml({ yellow: { state: "data_gap", p: null, caution: [] }, red: { state: "forecast", p: 0.004, caution: ["few_hours"] } }, meta, null);
   assert.match(gap, /data gap/);
   assert.match(gap, /&lt;1% \*/);

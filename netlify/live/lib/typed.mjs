@@ -1,10 +1,11 @@
 // M6 typed forecasts on the live site (plans/M6-site.md §3, §5): per alert level (yellow = drones, red = missiles), the
 // rolling recent-rate baseline at tau, blended with a typed model once one exists (w = 0 until then). Pure functions.
 import { unitIntervals, offsetAt, covered } from "./features.mjs";
-import { coverageAt, holes, levelAt, ALERT_TYPES } from "./live.mjs";
-// typed targets count the same alert types as M8's approved "any" target (one list; plan §3). Live binding: only read
-// inside functions, so the live.mjs <-> typed.mjs import cycle is safe.
-export { ALERT_TYPES as TYPED_ALERT_TYPES } from "./live.mjs";
+import { coverageAt, holes, levelAt } from "./live.mjs";     // import cycle is safe: only used inside functions
+// Yellow/red count air-raid alerts only (human decision, chat 2026-10-18, D-040; matches the M6c-1 models). Artillery
+// alerts also carry a level but are not drones/missiles, and a running red artillery alert would hide missile onsets
+// (Dnipropetrovska). The main "any" map still counts all types (live.mjs ALERT_TYPES, M8).
+export const TYPED_ALERT_TYPES = ["air_raid"];
 
 const HOUR = 3600e3, DAY = 24 * HOUR, CAP = DAY;
 export const LEVELS = ["yellow", "red"];
@@ -27,8 +28,8 @@ export function blend(pModel, pBase, w) {
 }
 
 function checkModel(m, tau) {
-  if (!Array.isArray(m.alert_types) || JSON.stringify([...m.alert_types].sort()) !== JSON.stringify([...ALERT_TYPES].sort()))
-    throw new Error(`typed model ${m.version}: alert_types ${m.alert_types} != ${ALERT_TYPES}`);
+  if (!Array.isArray(m.alert_types) || JSON.stringify([...m.alert_types].sort()) !== JSON.stringify([...TYPED_ALERT_TYPES].sort()))
+    throw new Error(`typed model ${m.version}: alert_types ${m.alert_types} != ${TYPED_ALERT_TYPES}`);
   if (m.horizon_minutes !== HORIZON_MINUTES) throw new Error(`typed model ${m.version}: horizon ${m.horizon_minutes} != ${HORIZON_MINUTES}`);
   if (!Number.isFinite(m.trained_through) || !Number.isFinite(m.available_at) || m.trained_through + HOUR > m.available_at)
     throw new Error(`typed model ${m.version}: trained_through + 1 h must be <= available_at`);
@@ -53,7 +54,7 @@ function typedKnown(state, tau) {
   const byLevel = Object.fromEntries(LEVELS.map(l => [l, []]));
   const unresolved = {};
   for (const r of Object.values(state.records)) {
-    if (r.firstSeen > tau || r.start > tau || !ALERT_TYPES.includes(r.alert_type)) continue;
+    if (r.firstSeen > tau || r.start > tau || !TYPED_ALERT_TYPES.includes(r.alert_type)) continue;
     const end = r.end !== null && r.endKnown !== null && r.endKnown <= tau && r.end <= tau ? r.end : null;
     const level = levelAt(r, tau);
     if (level === null) {
@@ -134,7 +135,7 @@ export function typedAt(state, tau, regions, zones, typedVersions = null, rej = 
   const meta = { label: "in training", mode: typedModel ? "blend" : "baseline_only",
                  model: typedModel ? { version: typedModel.version, trained_through: typedModel.trained_through,
                                        available_at: typedModel.available_at } : null,
-                 weights, alert_types: ALERT_TYPES, levels: LEVELS, horizon_minutes: HORIZON_MINUTES,
+                 weights, alert_types: TYPED_ALERT_TYPES, levels: LEVELS, horizon_minutes: HORIZON_MINUTES,
                  history_days: hd.days, history_since: hd.since };
   return { units, meta };
 }
@@ -145,7 +146,7 @@ export function typedFailure(regions, err) {
   const gap = { state: "data_gap", p: null, p_baseline: null, p_model: null, w: 0, recent_k: null, recent_n: null, caution: ["typed_error"] };
   const units = Object.fromEntries(regions.units.map(u => [u, { yellow: { ...gap, caution: [...gap.caution] }, red: { ...gap, caution: [...gap.caution] } }]));
   return { units, meta: { label: "in training", mode: "error", error: String(err && err.message || err).slice(0, 200), model: null,
-                          weights: { yellow: null, red: null }, alert_types: ALERT_TYPES, levels: LEVELS,
+                          weights: { yellow: null, red: null }, alert_types: TYPED_ALERT_TYPES, levels: LEVELS,
                           horizon_minutes: HORIZON_MINUTES, history_days: null, history_since: null } };
 }
 

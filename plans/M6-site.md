@@ -167,7 +167,11 @@ reviewer + harness review run and fixed or argued; summary (< 250 words) + propo
 brief from the human's session says "Commit on your own branch. Do not open a PR, do not merge" — one commit on
 `claude/m6-site-hover-*`, nothing on main, no PR, no deploy (the human merges and deploys).
 
-## Open questions for the human (do not block; listed in the summary)
+## Decided by the human (chat, 2026-10-18): yellow/red count AIR-RAID alerts only
+"Yes: yellow/red count air_raid alerts only, matching M6c-1." `TYPED_ALERT_TYPES = ["air_raid"]` in typed.mjs; the
+"any" map keeps all API types (M8). §3's "same set as M8" is superseded. Evidence that led to it is kept below.
+
+## Open questions for the human (resolved 2026-10-18, above)
 1. Typed targets inherit M8's set (all API types), so "red" includes artillery-shelling alerts marked red. Should
    typed targets be air_raid only (drones / missiles)? That is a target change for the human; the code has one switch.
    Checked 2026-10-18 against the human's parallel work (datastore, starts from 13 Sep, deduplicated by id):

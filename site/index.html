@@ -633,7 +633,7 @@ function typedCardHtml(x, meta, monthly, monthlyError) {
   const nMonths = monthly && Array.isArray(monthly.months) ? new Set(monthly.months.filter(m => m && m.month).map(m => m.month)).size : 0;
   const since = meta.history_since === null || meta.history_since === undefined ? "" : ` since ${tDate(meta.history_since)}`;
   return `<div class="typed"><div class="eyebrow">Yellow (drones) / Red (missiles) <span class="tag">${tEsc(meta.label || "in training")}</span></div>`
-    + `<p class="muted small">Chance that an alert of that level starts in the next 60 minutes. Levels as marked by alerts.in.ua; all alert types, as on the main map.</p>`
+    + `<p class="muted small">Chance that an alert of that level starts in the next 60 minutes. Levels as marked by alerts.in.ua; air-raid alerts only (the main map counts all alert types).</p>`
     + `<dl>${row("yellow")}${row("red")}</dl>`
     + `<p class="small">${typedMode(meta)}.${["yellow", "red"].some(l => x[l] && (x[l].caution || []).includes("few_hours")) ? " * fewer than 48 forecastable hours in the last 14 days." : ""}</p>`
     + `<p class="small muted">Collecting data: ${tNum(meta.history_days) ? meta.history_days : "n/a"} days of yellow/red history in total${since} (live collection, counting only time complete for all oblasts; the training copy is the project's daily datastore).</p>`

@@ -41,5 +41,8 @@ Numbers start at D-033 because D-028–D-032 are already proposed by M4, M5, M7,
   two-week baseline until a typed model exists (blend weight 0). Levels are kept with the time they became known
   (versions; when the API changes a level in place, the latest version is kept — me, 2026-10-18). A yellow/red error
   never blocks the main forecast; it is shown on the page and in the run status.
-- Design decisions P2–P8 of reviews/M6-site-consensus.md approved (me, 2026-10-18). P1 (which alert types count for
-  yellow/red) open.
+- Design decisions P2–P8 of reviews/M6-site-consensus.md approved (me, 2026-10-18).
+- Yellow/red count AIR-RAID alerts only (me, 2026-10-18), matching the M6c-1 models; the "any" target and map keep all
+  API alert types (M8, D-032 proposed). Evidence: in the API data, red artillery alerts (Dnipropetrovska) keep the
+  oblast "under red" and hide air-raid onsets (all types: 1,086 red / 4,498 yellow onsets vs air-raid only 1,119 /
+  4,509). Amends D-033's typed targets: type = alert_level among air-raid alerts.

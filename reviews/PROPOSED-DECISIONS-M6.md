@@ -35,3 +35,11 @@ Numbers start at D-033 because D-028–D-032 are already proposed by M4, M5, M7,
   hole is recorded per unit in `reports/collect/coverage_holes.csv`, the new data is committed, and the run then ends
   red (exit code 3, so GitHub e-mails the owner). Coverage = the pulls' windows minus the recorded holes. Every
   other data check still fails the run with nothing committed.
+
+## D-040 — Typed forecasts on the live site (M6-site; me, 2026-10-18: "yes")
+- The live site shows yellow/red only in the oblast tooltip and card, labelled "in training". It uses the per-level
+  two-week baseline until a typed model exists (blend weight 0). Levels are kept with the time they became known
+  (versions; when the API changes a level in place, the latest version is kept — me, 2026-10-18). A yellow/red error
+  never blocks the main forecast; it is shown on the page and in the run status.
+- Design decisions P2–P8 of reviews/M6-site-consensus.md approved (me, 2026-10-18). P1 (which alert types count for
+  yellow/red) open.

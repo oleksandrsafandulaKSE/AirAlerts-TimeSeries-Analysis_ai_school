@@ -170,6 +170,16 @@ brief from the human's session says "Commit on your own branch. Do not open a PR
 ## Open questions for the human (do not block; listed in the summary)
 1. Typed targets inherit M8's set (all API types), so "red" includes artillery-shelling alerts marked red. Should
    typed targets be air_raid only (drones / missiles)? That is a target change for the human; the code has one switch.
+   Checked 2026-10-18 against the human's parallel work (datastore, starts from 13 Sep, deduplicated by id):
+   - In the API data, artillery alerts REMOVE onsets instead of adding them: air-raid-only gives 1,119 red / 4,509
+     yellow onsets, all types 1,086 / 4,498. All 33 + 11 lost onsets are in Dnipropetrovska, where red artillery
+     alerts (city/hromada level, 327 red rows, Nikopol/Marhanets area) keep the unit "under red", so a missile alert
+     starting then is not an onset.
+   - M10 §A (main checkout) measures the same artillery problem in the official data (hromada rows, Nikopol top) and
+     leaves "air-raid-only target" as its question 2 for the human.
+   - M6c-1 trained the typed models on air_raid only (`newregime.data.load()`); with the current switch the site would
+     REJECT that model (alert_types mismatch) until the two agree.
+   - M8/M11 keep all types for the "any" map; nothing here changes that.
 
 ## Deviation after review (implementation)
 - Reviewer finding 2: a typed error (bad model version, model p outside (0, 1)) no longer throws out of `forecastAll`;

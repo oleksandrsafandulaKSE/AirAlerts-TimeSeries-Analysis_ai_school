@@ -6,6 +6,13 @@ Outcome: **consensus** after 4 Codex rounds (rounds 3 and 4 each needed a second
 Codex final verdict (reviews/M6-site-codex-r4.md), verbatim: `VERDICT: AGREE`
 ("None introduces an additional change to CLAUDE.md or existing DECISIONS.md rules.")
 
+## Human ratification (chat, 2026-10-18)
+- P2–P8: **approved** ("approve p2-p8").
+- P1 (alert types for yellow/red): **open**. The human asked to check it against M10 (non-air-raid rows); findings in
+  plans/M6-site.md "Open questions for the human".
+- Levels changed in place by the API: **keep the latest version** (the current behaviour).
+- D-040 entry: **yes** (reviews/PROPOSED-DECISIONS-M6.md).
+
 ## PROVISIONAL (Claude+Codex consensus, human to ratify)
 - P1 Typed targets count the same alert types as M8's approved "any" target (all API types; one list). Red therefore
   includes artillery-shelling alerts marked red. Air-raid only is a question for the human (a target change).

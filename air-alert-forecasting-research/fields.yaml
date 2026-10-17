@@ -1,0 +1,119 @@
+fields:
+  basic_info:
+    - name: name
+      description: "Project or paper title"
+      detail_level: brief
+    - name: type
+      description: "repo / paper / dataset / document / method family"
+      detail_level: brief
+    - name: url
+      description: "Primary link(s)"
+      detail_level: brief
+    - name: year
+      description: "Publication year or last update date"
+      detail_level: brief
+    - name: authors
+      description: "Authors or maintainers"
+      detail_level: brief
+    - name: popularity
+      description: "GitHub stars / citations, if available"
+      detail_level: brief
+    - name: peer_review_status
+      description: "peer-reviewed / preprint / student repo / self-reported claim"
+      detail_level: brief
+
+  problem_framing:
+    - name: target_type
+      description: "onset (new start) vs state (any active) vs count; state targets inflate scores"
+      detail_level: moderate
+    - name: target_definition
+      description: "Exact label definition and horizon H"
+      detail_level: moderate
+    - name: spatial_unit
+      description: "oblast / raion / hromada / grid cell / city"
+      detail_level: brief
+    - name: at_risk_masking
+      description: "Are rows already under alert excluded from training and scoring?"
+      detail_level: moderate
+
+  data:
+    - name: data_sources
+      description: "Sources used and period covered"
+      detail_level: moderate
+    - name: data_source_variant
+      description: "official vs volunteer vs alerts.in.ua API; admin levels used (oblast-only vs union); snapshot date"
+      detail_level: moderate
+    - name: preprocessing
+      description: "Deduplication, gap handling, admin-level union, standing alerts"
+      detail_level: moderate
+    - name: known_label_artefacts
+      description: "naive/30-min ends, standing alerts, gaps, swapped columns, duplicates, and how each was handled"
+      detail_level: detailed
+
+  method:
+    - name: model_family
+      description: "Model(s) used (GBM, RF, LR, Hawkes, hazard, GNN, ...)"
+      detail_level: moderate
+    - name: features
+      description: "Lag, spatial, calendar, and external features"
+      detail_level: detailed
+    - name: external_feature_timing
+      description: "For ISW/Telegram/weather/launch counts: publication lag; forecast vs observed (oracle) values"
+      detail_level: moderate
+    - name: ablation_design
+      description: "Are feature additions compared on the same time-restricted sample?"
+      detail_level: moderate
+
+  evaluation:
+    - name: split_scheme
+      description: "Walk-forward / chronological split, dates, refits"
+      detail_level: moderate
+    - name: metrics
+      description: "Brier, BSS, ROC-AUC, PR-AUC, log loss, etc."
+      detail_level: moderate
+    - name: unit_of_metric
+      description: "Pooled vs within-unit averaged AUC/PR-AUC"
+      detail_level: brief
+    - name: baseline_strength
+      description: "Which baselines (climatology, rolling recent rate, calibrated persistence) and skill vs the strongest"
+      detail_level: moderate
+    - name: calibration
+      description: "Reliability plots, calibration method, where fitted"
+      detail_level: moderate
+    - name: calibration_under_drift
+      description: "Calibration-in-the-large test vs validation; base-rate shift; recalibration method"
+      detail_level: moderate
+    - name: uncertainty_of_gain
+      description: "CI or significance test on skill difference (block bootstrap, DM test)"
+      detail_level: moderate
+    - name: regime_coverage
+      description: "Does evaluation span known shifts (Jan-2025 drone surge, Dec-2025 raion reform, Sep-2026 yellow/red)?"
+      detail_level: moderate
+
+  leakage_and_hygiene:
+    - name: leakage_handling
+      description: "Purging, truncation tests, causal features; what was done or missed"
+      detail_level: detailed
+    - name: test_window_hygiene
+      description: "How often test was looked at; pre-registration; when target/model were frozen"
+      detail_level: moderate
+
+  results:
+    - name: headline_results
+      description: "Key numbers, and whether they beat naive baselines"
+      detail_level: detailed
+
+  reproducibility:
+    - name: code_available
+      description: "Code/data availability, license, maintenance status"
+      detail_level: brief
+
+  relevance:
+    - name: takeaways_for_project
+      description: "Concrete lessons for our onset forecaster (map to D-xxx rules where relevant)"
+      detail_level: detailed
+    - name: best_practices
+      description: "Practices worth adopting, and anti-patterns to avoid"
+      detail_level: detailed
+
+uncertain: []

@@ -20,7 +20,18 @@ OTHER = {"yellow": "red", "red": "yellow"}
 
 
 def _ts(s):
-    return pd.Timestamp(s).tz_convert("UTC")
+    """Strict ISO-8601 UTC with 'Z' (collect.parse_ts raises otherwise)."""
+    return pd.Timestamp(ac.parse_ts(s)).tz_convert("UTC")
+
+
+def _merge(intervals):
+    out = []
+    for a, b in sorted(intervals):
+        if out and a <= out[-1][1]:
+            out[-1] = (out[-1][0], max(out[-1][1], b))
+        else:
+            out.append((a, b))
+    return out
 
 
 @dataclass(frozen=True)
@@ -49,7 +60,10 @@ def coverage(log_rows, hole_rows):
     for r in log_rows:
         if r["unit"] not in win:
             raise data.DataQualityError(f"pull log names unknown unit {r['unit']!r}")
-        win[r["unit"]].append((_ts(r["nominal_window_from"]), _ts(r["fetched_at"])))
+        a, b = _ts(r["nominal_window_from"]), _ts(r["fetched_at"])
+        if not a < b:
+            raise data.DataQualityError(f"{r['unit']}: inverted pull window [{a}, {b}]")
+        win[r["unit"]].append((a, b))
     missing = [u for u in units if not win[u]]
     if missing:
         raise data.DataQualityError(f"units without any pull: {missing}")
@@ -58,17 +72,21 @@ def coverage(log_rows, hole_rows):
     if not hs < ce:
         raise data.DataQualityError(f"no common coverage: history_start {hs} >= coverage_end {ce}")
     holes = sorted((_ts(h["hole_from"]), _ts(h["hole_to"])) for h in hole_rows)
+    for h0, h1 in holes:
+        if not (h0 < h1 and hs <= h0 and h1 <= ce):
+            raise data.DataQualityError(f"hole ({h0}, {h1}) is inverted or outside the coverage [{hs}, {ce}]")
+    merged = _merge(holes)   # adjacent / overlapping holes cover a gap together
     for u, w in win.items():  # walk the windows; any uncovered stretch inside [hs, ce] must lie inside a hole
         reach = hs
         for a, b in sorted(w):
             if a > reach and reach < ce:
                 gap = (reach, min(a, ce))
-                if not any(h0 <= gap[0] and gap[1] <= h1 for h0, h1 in holes):
+                if not any(h0 <= gap[0] and gap[1] <= h1 for h0, h1 in merged):
                     raise data.DataQualityError(f"{u}: unrecorded coverage gap {gap}")
             reach = max(reach, b)
         if reach < ce:
             raise data.DataQualityError(f"{u}: windows end at {reach} before coverage_end {ce}")
-    return Coverage(hs, ce, tuple(holes))
+    return Coverage(hs, ce, tuple(merged))
 
 
 def load(store_path=DATASTORE, log_path=PULL_LOG, holes_path=HOLES, reconstruct_at=None, stats=None):

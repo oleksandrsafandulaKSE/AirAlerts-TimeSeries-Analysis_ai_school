@@ -258,3 +258,44 @@ def test_real_datastore_smoke():
     for typ in nd.TYPES:
         on = F.onsets_by_unit(al, typ)
         assert sum(len(v) for v in on.values()) > 0, typ
+
+
+# ---------------- harness-review regressions ----------------
+
+def test_overlapping_test_week_is_refused(tmp_path):
+    sp = guard_split()
+    P.reserve(sp, "x", tmp_path)
+    shorter = replace(sp, name="other", test_end=sp.test_end - H1)       # same week, one hour shorter
+    assert P.accessed(shorter, tmp_path)
+    with pytest.raises(DataQualityError, match="already accessed"):
+        P.fit(shorter, tmp_path / "out", access_dir=tmp_path)
+    later = replace(sp, val=(sp.val[0], sp.test_end), test_start=sp.test_end, test_end=sp.test_end + 24 * H1)
+    assert not P.accessed(later, tmp_path)                                  # disjoint week: allowed
+
+
+def test_official_model_check_runs_before_reservation(tmp_path, monkeypatch):
+    out, acc = tmp_path / "out", tmp_path / "acc"
+    sp = guard_split()
+    P.fit(sp, out, access_dir=acc)
+
+    def broken(H):
+        raise DataQualityError("official model changed")
+    monkeypatch.setattr(P, "official_predictor", broken)
+    with pytest.raises(DataQualityError, match="official model changed"):
+        P.score_test(sp, out, access_dir=acc)
+    assert not P.accessed(sp, acc)                                          # the test week is still available
+
+
+def test_coverage_input_validation():
+    later = [(u, "2026-09-20T00:00:00Z", "2026-10-20T00:00:00Z") for u in regions.units() if u != "kyiv_city"]
+    gap = [("kyiv_city", "2026-10-15T00:00:00Z", "2026-11-14T00:00:00Z")]
+    two = [{"hole_from": "2026-10-12T17:00:00Z", "hole_to": "2026-10-13T00:00:00Z"},
+           {"hole_from": "2026-10-13T00:00:00Z", "hole_to": "2026-10-15T00:00:00Z"}]
+    cov = nd.coverage(full_log(later + gap), two)                           # adjacent holes cover the gap together
+    assert cov.holes == ((ts("2026-10-12 17:00"), ts("2026-10-15 00:00")),)
+    with pytest.raises(DataQualityError, match="outside the coverage"):
+        nd.coverage(full_log(), [{"hole_from": "2026-09-01T00:00:00Z", "hole_to": "2026-12-01T00:00:00Z"}])
+    with pytest.raises(DataQualityError, match="inverted pull window"):
+        nd.coverage(full_log([("kyiv_city", "2026-10-20T00:00:00Z", "2026-10-01T00:00:00Z")]), [])
+    with pytest.raises(Exception):
+        nd.coverage(full_log([("kyiv_city", "2026-09-20 00:00", "2026-10-01T00:00:00Z")]), [])   # no 'Z': raises

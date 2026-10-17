@@ -91,6 +91,16 @@ def _git(*args):
     return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True).stdout.strip()
 
 
+def accessed(split, access_dir=ACCESS_DIR):
+    """Existing reservations whose test week OVERLAPS this split's [test_start, test_end) (any name, any status)."""
+    hits = []
+    for p in sorted(Path(access_dir).glob("test_*.json")):
+        a, b = (pd.Timestamp(x.replace("Z", ""), tz="UTC") for x in p.stem.split("_")[1:3])
+        if a < split.test_end and split.test_start < b:
+            hits.append(p)
+    return hits
+
+
 def access_path(split, access_dir=ACCESS_DIR):
     f = "%Y-%m-%dT%H%MZ"
     return Path(access_dir) / f"test_{split.test_start.strftime(f)}_{split.test_end.strftime(f)}.json"  # dates only
@@ -286,8 +296,8 @@ def _print_table(table, title):
 def fit(split=None, out_dir=OUT, paths=Paths(), access_dir=ACCESS_DIR):
     split = first_split() if split is None else split
     out_dir = Path(out_dir)
-    if access_path(split, access_dir).exists():
-        raise DataQualityError(f"the test of split {split.name} was already accessed ({access_path(split, access_dir)}): "
+    if accessed(split, access_dir):
+        raise DataQualityError(f"the test week of split {split.name} was already accessed ({accessed(split, access_dir)}): "
                                "refitting is not allowed")
     print(f"[fit] {LABEL}; split {asdict(split)}")
     ctx = prepare(split, paths)
@@ -323,7 +333,8 @@ def fit(split=None, out_dir=OUT, paths=Paths(), access_dir=ACCESS_DIR):
               "features": {typ: F.feature_list(typ) for typ in nd.TYPES},
               "best_iteration": {f"{k[0]}_h{k[1]}": v["best_iteration"] for k, v in arts.items()},
               "calibration": {f"{k[0]}_h{k[1]}": v["cal"]["decision"] for k, v in arts.items()},
-              "lightgbm_params": model.PARAMS, "blend": {"n0": blend.N0, "window": str(blend.WINDOW)}}
+              "lightgbm_params": model.PARAMS, "blend": {"n0": blend.N0, "window": str(blend.WINDOW)},
+              "packages": {p: version(p) for p in PACKAGES}, "python": platform.python_version()}
     (out_dir / "preregistration.json").write_text(json.dumps(prereg, indent=2, sort_keys=True, default=str))
     meta = run_meta(ctx, arts, paths, stage="fit", reasons=reasons)
     (out_dir / "run_meta_fit.json").write_text(json.dumps(meta, indent=2, default=str))
@@ -362,6 +373,8 @@ def load_artifacts(out_dir, paths):
         raise DataQualityError("input files (datastore / pull log / holes) changed since the pre-registration")
     if pr["code_fingerprint"] != code_fingerprint():
         raise DataQualityError("code changed since the pre-registration")
+    if "packages" in pr and pr["packages"] != {p: version(p) for p in PACKAGES}:
+        raise DataQualityError(f"package versions changed since the pre-registration: {pr['packages']}")
     arts = {}
     for typ in nd.TYPES:
         for H in HORIZONS:
@@ -391,12 +404,13 @@ def score_test(split=None, out_dir=OUT, paths=Paths(), access_dir=ACCESS_DIR):
     if pr["split"] != {k: str(v) for k, v in asdict(split).items()}:
         raise DataQualityError("split differs from the pre-registered one")
     pr_sha = sha256_file(out_dir / "preregistration.json")
-    if access_path(split, access_dir).exists():
-        raise DataQualityError(f"the test of split {split.name} was already accessed: {access_path(split, access_dir)}")
+    if accessed(split, access_dir):
+        raise DataQualityError(f"the test week of split {split.name} was already accessed: {accessed(split, access_dir)}")
+    # every check that can fail runs BEFORE the reservation (harness review): official models, package versions
+    official = {h_int(H): official_predictor(h_int(H)) for H in HORIZONS}
     res = reserve(split, pr_sha, access_dir)
     print(f"[test] reserved {res}; {LABEL}")
     ctx = prepare(split, paths)
-    official = {H: official_predictor(H) for H in ctx.cfgs}
     tables, reasons, wts, scored_all = [], {}, [], {}
     for H in ctx.cfgs:
         lab = {typ: ctx.frames[(typ, H)] for typ in nd.TYPES}
@@ -463,7 +477,8 @@ def write_test_outputs(ctx, out_dir, table, wt_all, scored_all, reasons, paths, 
         ax.set_xlabel("mean predicted probability")
         ax.set_ylabel("observed onset rate")
         ax.legend(loc="upper left", fontsize=8)
-    fig.suptitle(f"Reliability on the test week 2026-10-11 -> 10-17 ({LABEL})", fontsize=10)
+    week = f"{ctx.split.test_start:%Y-%m-%d %H:%M} -> {ctx.split.test_end:%Y-%m-%d %H:%M} UTC"
+    fig.suptitle(f"Reliability on the test week {week} ({LABEL})", fontsize=10)
     fig.tight_layout()
     fig.savefig(out_dir / "reliability.png", dpi=120)
     plt.close(fig)
@@ -486,7 +501,7 @@ def write_test_outputs(ctx, out_dir, table, wt_all, scored_all, reasons, paths, 
     a1.axhline(0, color="black", lw=1)
     a1.set_xticks(x, [t.upper() for t in nd.TYPES])
     a1.set_ylabel("Brier skill vs rolling recent rate (> 0 = better)")
-    a1.set_title("Test week 2026-10-11 -> 10-17 19:00 UTC, all oblasts")
+    a1.set_title(f"Test week {week}, all oblasts")
     a1.legend(fontsize=7)
     w1 = wt_all[wt_all["H"] == 1]
     for typ in nd.TYPES:

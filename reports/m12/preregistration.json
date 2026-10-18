@@ -1,0 +1,85 @@
+{
+  "acquisition_cutoff": "2026-10-18 08:48:50+00:00",
+  "best_iteration": {
+    "any_h12": 31,
+    "any_h24": 22,
+    "any_h6": 33
+  },
+  "blend": {
+    "n0": 50.0,
+    "operational_cutoff": "2026-10-11 00:00:00+00:00",
+    "window": "28 days 00:00:00"
+  },
+  "calibration": {
+    "any_h12": "platt",
+    "any_h24": "platt",
+    "any_h6": "platt"
+  },
+  "code_fingerprint": "80a598d71bcf3e4f8a69f971b458b18bb92c2032dddb5cf6a0216fa64ae03e71",
+  "coverage": {
+    "coverage_end": "2026-10-18 08:02:50+00:00",
+    "history_start": "2026-09-12 17:00:43+00:00",
+    "holes": []
+  },
+  "inputs_prefix_sha256": {
+    "coverage_holes": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "datastore": "4db55868f49ab0a95ad4a0b61b62426ae86c877b2638f58f9693f40609ea27c0",
+    "pull_log": "9861cbd4fe4f1f3cfd2893a868894058f6979fbfa66501b2b7f78b05cb650943"
+  },
+  "label": "EXPLORATORY: alerts.in.ua event-time reconstruction (D-027), new-regime M12",
+  "lightgbm_params": {
+    "bagging_fraction": 1.0,
+    "bagging_freq": 0,
+    "deterministic": true,
+    "feature_fraction": 1.0,
+    "force_row_wise": true,
+    "learning_rate": 0.05,
+    "metric": "binary_logloss",
+    "min_data_in_leaf": 100,
+    "num_leaves": 31,
+    "num_threads": 1,
+    "objective": "binary",
+    "seed": 20261013,
+    "verbose": -1
+  },
+  "m6c1_code_fingerprint_current": "5cf10aca6f571d92a55464114b174409d2baf2c72ea2ee0a27567174eabe5008",
+  "m6c1_code_fingerprint_preregistered": "a9a927516e68195c2b7ec29b233971f030931b79f446615f71e4d0a5876ab691",
+  "m6c1_preregistration_sha256": "aa6a6e2774cfa77214ce6d07adf84e96fbf5f29be9296705af6a3af25ff3a5d7",
+  "packages": {
+    "lightgbm": "4.7.0",
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scikit-learn": "1.9.1"
+  },
+  "python": "3.13.5",
+  "reconstruct_at": "2026-10-18 08:00:00+00:00",
+  "sha256": {
+    "baseline_fit_any_h12.json": "560cfd6d8aba1d0406c64248fc697cb541dd67bc451e9ba4185b034bf2d3d132",
+    "baseline_fit_any_h24.json": "701e04d410f2580f44f19188712c5fe64308801d5b64e38fb87d773fdcac1893",
+    "baseline_fit_any_h6.json": "bf1aea102562406e60d57f67174d3b8752b3d1f214ea9a71a37b267a51c0ce02",
+    "calibrator_any_h12.json": "68bfcbda7684ec039810529aa22ab80e9ea6ccb7966f5fa1d17a6fdc061515a0",
+    "calibrator_any_h24.json": "fb2b823d4689b13ba1723640c65538729b4c9f3574eefa080720d1a5225ab302",
+    "calibrator_any_h6.json": "e43e5aeefb36aea5c5aac5383bf68da9bf88a59a05248e901d565d9f051ae324",
+    "model_any_h12.txt": "11067db5de8053a1ca18aec5d160a6d45a6d475190b739599cefd5192bfb6fd0",
+    "model_any_h24.txt": "97a41b8b9bd378f4a461272eed793e666130fca05888124a2d579ccdd41a54b3",
+    "model_any_h6.txt": "9c7d2b94daa3576e291ee8df2f54c043efcfb2ad90559a6c3010e15fa651b78e",
+    "val_predictions_any_h12.csv": "8f1d5af12d3292f70e271ad3be4b32c331dd8197c07e72e4fdec8beaa2ec59bd",
+    "val_predictions_any_h24.csv": "30605454c97e20be98ee059a8304d297606caa682d0a4e66ea871056f9b4f45c",
+    "val_predictions_any_h6.csv": "9b9a32643606eb4065cbe310488c0ca6eefa55e71e6fdf240918425c44d832b5"
+  },
+  "split": {
+    "gap_end": "2026-10-18 00:00:00+00:00",
+    "grid_start": "2026-09-13 00:00:00+00:00",
+    "name": "m12",
+    "test_end": "2026-10-25 00:00:00+00:00",
+    "test_start": "2026-10-18 00:00:00+00:00",
+    "train": "(Timestamp('2026-09-13 00:00:00+0000', tz='UTC'), Timestamp('2026-10-04 00:00:00+0000', tz='UTC'))",
+    "val": "(Timestamp('2026-10-04 00:00:00+0000', tz='UTC'), Timestamp('2026-10-11 00:00:00+0000', tz='UTC'))"
+  },
+  "test_scope": [
+    "any_h6",
+    "any_h12",
+    "any_h24"
+  ]
+}

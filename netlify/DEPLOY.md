@@ -82,3 +82,23 @@ With no `ALERTS_IN_UA_TOKEN` in the environment, it replays the saved dump throu
 - The whole state is read and written as one blob every run, with strong consistency.
 - The state grows by about 4 MB per month of alerts. The harness review measured a full run at about 8 s after 12 months and 9 s after 24 months (on a laptop; Netlify allows 30 s).
 - Pruning old records needs the expanding prior kept as running per-oblast counts. That is proposed as follow-up work and is not built.
+
+## M12: the new-data models (inactive until the switch)
+
+The M12 registry (`netlify/live/model/m12/`: "any" 1/3/6/12/24 h, yellow/red 1/3 h, trained on alerts.in.ua data only, air-raid alerts only) is bundled and runs every minute, but ships **inactive** (`activation.json`: `{"active": false}`):
+
+- each UTC hour it archives the models' predictions (`snapv2/<hour>`, first write wins, kept 35 days): `p_model` and `p_baseline` only;
+- no blend weight, no blended chance, no score is computed (`check_v2` = `{"status": "inactive"}`), and `/api/forecast` is byte-identical to the M8 output;
+- an error on the new path is shown as `status.m12.error` and never blocks the M8 forecast.
+
+### Switch (after the M12 test stage; the human runs it)
+
+Run it only after `python scripts/run_m12.py --test` has written `reports/m12/metrics.csv` (needs data through 2026-10-25) and the blend seed has been rebuilt (`--export` after the test).
+
+1. Edit `netlify/live/model/m12/activation.json` to `{"active": true, "activated_at": <now in ms since epoch>, "test_metrics_sha256": "<sha256 of reports/m12/metrics.csv>"}`. The function refuses to load (and the run status shows why) if `activated_at` is earlier than `earliest_activation` in `registry.json` (2026-10-26 03:00 UTC: the last 24 h label of the test week plus 3 h settling) or the sha256 is missing.
+2. Deploy: `npx netlify-cli deploy --prod`.
+3. Check: `/api/forecast` now contains an `m12` section with `active: true`; the log line shows `m12=active`; `check_v2` turns `"active"` within the hour, scoring only forecasts issued at or after `activated_at`.
+
+Rollback: set `"active": false` and deploy again. The archived snapshots stay.
+
+While active, `snapv2/` snapshots are not deleted (no silent rolling window); the cumulative per-series daily archive (as M11's `check_archive`) is session-2 work before the first 35 days after activation. Growth is about 10 KB per hour.

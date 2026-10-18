@@ -1,0 +1,64 @@
+{
+  "label": "EXPLORATORY: alerts.in.ua event-time reconstruction (D-027), new-regime M12",
+  "stages": {
+    "fit": {
+      "git_commit": "8f91abeb5093ef7a4eac7f87b78ac3612d7a1860",
+      "git_dirty": true,
+      "at": "2026-10-18T15:42:35.540821+00:00",
+      "code_fingerprint": "80a598d71bcf3e4f8a69f971b458b18bb92c2032dddb5cf6a0216fa64ae03e71",
+      "validation_rows": 22533
+    },
+    "redshare": {
+      "git_commit": "8f91abeb5093ef7a4eac7f87b78ac3612d7a1860",
+      "git_dirty": true,
+      "at": "2026-10-18T15:42:35.540821+00:00",
+      "code_fingerprint": "80a598d71bcf3e4f8a69f971b458b18bb92c2032dddb5cf6a0216fa64ae03e71",
+      "counts": {
+        "onsets": 4770,
+        "excluded_window_before_history": 829,
+        "excluded_coverage": 0,
+        "no_prediction_n0": 3,
+        "scored": 3938
+      },
+      "nan_reasons": [],
+      "end": "2026-10-18 00:00:00+00:00"
+    },
+    "replay": {
+      "git_commit": "8f91abeb5093ef7a4eac7f87b78ac3612d7a1860",
+      "git_dirty": true,
+      "at": "2026-10-18T15:42:35.540821+00:00",
+      "code_fingerprint": "80a598d71bcf3e4f8a69f971b458b18bb92c2032dddb5cf6a0216fa64ae03e71",
+      "checks": {
+        "any_h1": {
+          "rows": 1901,
+          "max_abs_diff_vs_published": 6.245004513516506e-16
+        },
+        "any_h3": {
+          "rows": 1877,
+          "max_abs_diff_vs_published": 2.220446049250313e-16
+        }
+      },
+      "pinned_commit": "aa05529",
+      "label": "retrospective reconstruction (D-027 latest versions)"
+    },
+    "export": {
+      "git_commit": "8f91abeb5093ef7a4eac7f87b78ac3612d7a1860",
+      "git_dirty": true,
+      "at": "2026-10-18T15:42:35.540821+00:00",
+      "code_fingerprint": "80a598d71bcf3e4f8a69f971b458b18bb92c2032dddb5cf6a0216fa64ae03e71",
+      "T_seed": "2026-10-18 00:00:00+00:00",
+      "available_at": "2026-10-18 15:42:00+00:00",
+      "models": [
+        "any_h1",
+        "any_h3",
+        "any_h6",
+        "any_h12",
+        "any_h24",
+        "yellow_h1",
+        "yellow_h3",
+        "red_h1",
+        "red_h3"
+      ]
+    }
+  }
+}

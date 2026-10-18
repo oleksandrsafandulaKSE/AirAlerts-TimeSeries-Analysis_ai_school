@@ -1,0 +1,378 @@
+{
+  "label": "EXPLORATORY: alerts.in.ua event-time reconstruction (D-027), new-regime M12",
+  "stage": "fit",
+  "split": {
+    "name": "m12",
+    "grid_start": "2026-09-13 00:00:00+00:00",
+    "train": "(Timestamp('2026-09-13 00:00:00+0000', tz='UTC'), Timestamp('2026-10-04 00:00:00+0000', tz='UTC'))",
+    "val": "(Timestamp('2026-10-04 00:00:00+0000', tz='UTC'), Timestamp('2026-10-11 00:00:00+0000', tz='UTC'))",
+    "gap_end": "2026-10-18 00:00:00+00:00",
+    "test_start": "2026-10-18 00:00:00+00:00",
+    "test_end": "2026-10-25 00:00:00+00:00"
+  },
+  "acquisition_cutoff": "2026-10-18 08:48:50+00:00",
+  "reconstruct_at": "2026-10-18 08:00:00+00:00",
+  "stats": {
+    "datastore_rows": 20672,
+    "distinct_ids": 20550,
+    "reconstructed_records": 20539,
+    "acquisition_cutoff": "2026-10-18 08:48:50+00:00",
+    "reconstruct_at": "2026-10-18 08:00:00+00:00",
+    "records_raw": 20539,
+    "excluded_uid_records": {},
+    "alert_types": {
+      "air_raid": 20194,
+      "artillery_shelling": 344,
+      "urban_fights": 1
+    },
+    "alert_types_dropped": {
+      "artillery_shelling": 344,
+      "urban_fights": 1
+    },
+    "duplicate_ids_dropped": 0,
+    "open_alerts": 51,
+    "open_by_unit": {
+      "kharkivska": 10,
+      "dnipropetrovska": 8,
+      "donetska": 8,
+      "zaporizka": 7,
+      "chernihivska": 4,
+      "kyivska": 2,
+      "rivnenska": 2,
+      "sumska": 2,
+      "lvivska": 2,
+      "zhytomyrska": 1,
+      "volynska": 1,
+      "kyiv_city": 1,
+      "poltavska": 1,
+      "mykolaivska": 1,
+      "khersonska": 1
+    },
+    "open_started_in_window": 50,
+    "alerts": 20194
+  },
+  "frames": {
+    "any_h1": [
+      20160,
+      17
+    ],
+    "any_h3": [
+      20112,
+      17
+    ],
+    "any_h6": [
+      20040,
+      17
+    ],
+    "any_h12": [
+      19896,
+      17
+    ],
+    "any_h24": [
+      19608,
+      17
+    ],
+    "yellow_h1": [
+      20160,
+      18
+    ],
+    "yellow_h3": [
+      20112,
+      18
+    ],
+    "red_h1": [
+      20160,
+      18
+    ],
+    "red_h3": [
+      20112,
+      18
+    ]
+  },
+  "exclusions_and_reasons": {
+    "any_h1": {
+      "nan_reasons": [],
+      "exclusions": {
+        "in_range": 4032,
+        "eligible": 2258,
+        "excluded_exclusive": {
+          "purge": 0,
+          "masked": 1774,
+          "y_nan": 0,
+          "feature_nan": 0
+        },
+        "excluded_overlapping": {
+          "purge": 0,
+          "masked": 1774,
+          "y_nan": 0,
+          "feature_nan": 0
+        }
+      }
+    },
+    "any_h3": {
+      "nan_reasons": [],
+      "exclusions": {
+        "in_range": 4032,
+        "eligible": 2230,
+        "excluded_exclusive": {
+          "purge": 48,
+          "masked": 1754,
+          "y_nan": 0,
+          "feature_nan": 0
+        },
+        "excluded_overlapping": {
+          "purge": 48,
+          "masked": 1774,
+          "y_nan": 0,
+          "feature_nan": 0
+        }
+      }
+    },
+    "any_h6": {
+      "nan_reasons": [],
+      "exclusions": {
+        "in_range": 4032,
+        "eligible": 2193,
+        "excluded_exclusive": {
+          "purge": 120,
+          "masked": 1719,
+          "y_nan": 0,
+          "feature_nan": 0
+        },
+        "excluded_overlapping": {
+          "purge": 120,
+          "masked": 1774,
+          "y_nan": 0,
+          "feature_nan": 0
+        }
+      }
+    },
+    "any_h12": {
+      "nan_reasons": [
+        "model/frontline: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "model_raw/frontline: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "blend/frontline: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "climatology/frontline: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "recent_rate/frontline: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "persistence_raw/frontline: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "persistence_calibrated/frontline: within-unit AUC NaN (no unit with >= 10 pos and neg)"
+      ],
+      "exclusions": {
+        "in_range": 4032,
+        "eligible": 2123,
+        "excluded_exclusive": {
+          "purge": 264,
+          "masked": 1645,
+          "y_nan": 0,
+          "feature_nan": 0
+        },
+        "excluded_overlapping": {
+          "purge": 264,
+          "masked": 1774,
+          "y_nan": 0,
+          "feature_nan": 0
+        }
+      }
+    },
+    "any_h24": {
+      "nan_reasons": [
+        "model/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "model/kyiv_city: Brier skill NaN (reference Brier = 0.0)",
+        "model/kyiv_city: ROC-AUC NaN (one class only)",
+        "model_raw/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "model_raw/kyiv_city: Brier skill NaN (reference Brier = 0.0)",
+        "model_raw/kyiv_city: ROC-AUC NaN (one class only)",
+        "blend/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "blend/kyiv_city: Brier skill NaN (reference Brier = 0.0)",
+        "blend/kyiv_city: ROC-AUC NaN (one class only)",
+        "climatology/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "climatology/kyiv_city: Brier skill NaN (reference Brier = 0.0)",
+        "climatology/kyiv_city: ROC-AUC NaN (one class only)",
+        "recent_rate/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "recent_rate/kyiv_city: Brier skill NaN (reference Brier = 0.0)",
+        "recent_rate/kyiv_city: ROC-AUC NaN (one class only)",
+        "persistence_raw/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "persistence_raw/kyiv_city: Brier skill NaN (reference Brier = 0.0)",
+        "persistence_raw/kyiv_city: ROC-AUC NaN (one class only)",
+        "persistence_calibrated/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "persistence_calibrated/kyiv_city: Brier skill NaN (reference Brier = 0.0)",
+        "persistence_calibrated/kyiv_city: ROC-AUC NaN (one class only)",
+        "model/frontline: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "model/frontline: Brier skill NaN (reference Brier = 0.0)",
+        "model/frontline: ROC-AUC NaN (one class only)",
+        "model_raw/frontline: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "model_raw/frontline: Brier skill NaN (reference Brier = 0.0)",
+        "model_raw/frontline: ROC-AUC NaN (one class only)",
+        "blend/frontline: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "blend/frontline: Brier skill NaN (reference Brier = 0.0)",
+        "blend/frontline: ROC-AUC NaN (one class only)",
+        "climatology/frontline: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "climatology/frontline: Brier skill NaN (reference Brier = 0.0)",
+        "climatology/frontline: ROC-AUC NaN (one class only)",
+        "recent_rate/frontline: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "recent_rate/frontline: Brier skill NaN (reference Brier = 0.0)",
+        "recent_rate/frontline: ROC-AUC NaN (one class only)",
+        "persistence_raw/frontline: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "persistence_raw/frontline: Brier skill NaN (reference Brier = 0.0)",
+        "persistence_raw/frontline: ROC-AUC NaN (one class only)",
+        "persistence_calibrated/frontline: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "persistence_calibrated/frontline: Brier skill NaN (reference Brier = 0.0)",
+        "persistence_calibrated/frontline: ROC-AUC NaN (one class only)"
+      ],
+      "exclusions": {
+        "in_range": 4032,
+        "eligible": 1990,
+        "excluded_exclusive": {
+          "purge": 552,
+          "masked": 1490,
+          "y_nan": 0,
+          "feature_nan": 0
+        },
+        "excluded_overlapping": {
+          "purge": 552,
+          "masked": 1774,
+          "y_nan": 0,
+          "feature_nan": 0
+        }
+      }
+    },
+    "yellow_h1": {
+      "nan_reasons": [],
+      "exclusions": {
+        "in_range": 4032,
+        "eligible": 2523,
+        "excluded_exclusive": {
+          "purge": 0,
+          "masked": 1341,
+          "y_nan": 0,
+          "feature_nan": 168
+        },
+        "excluded_overlapping": {
+          "purge": 0,
+          "masked": 1341,
+          "y_nan": 0,
+          "feature_nan": 168
+        }
+      }
+    },
+    "yellow_h3": {
+      "nan_reasons": [],
+      "exclusions": {
+        "in_range": 4032,
+        "eligible": 2490,
+        "excluded_exclusive": {
+          "purge": 48,
+          "masked": 1328,
+          "y_nan": 0,
+          "feature_nan": 166
+        },
+        "excluded_overlapping": {
+          "purge": 48,
+          "masked": 1341,
+          "y_nan": 0,
+          "feature_nan": 168
+        }
+      }
+    },
+    "red_h1": {
+      "nan_reasons": [
+        "model/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "blend/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "recent_any_x_red_share/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "climatology/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "recent_rate/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "persistence_raw/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "persistence_calibrated/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "model/rear: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "blend/rear: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "recent_any_x_red_share/rear: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "climatology/rear: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "recent_rate/rear: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "persistence_raw/rear: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "persistence_calibrated/rear: within-unit AUC NaN (no unit with >= 10 pos and neg)"
+      ],
+      "exclusions": {
+        "in_range": 4032,
+        "eligible": 3383,
+        "excluded_exclusive": {
+          "purge": 0,
+          "masked": 649,
+          "y_nan": 0,
+          "feature_nan": 0
+        },
+        "excluded_overlapping": {
+          "purge": 0,
+          "masked": 649,
+          "y_nan": 0,
+          "feature_nan": 0
+        }
+      }
+    },
+    "red_h3": {
+      "nan_reasons": [
+        "model/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "blend/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "recent_any_x_red_share/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "climatology/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "recent_rate/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "persistence_raw/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "persistence_calibrated/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)"
+      ],
+      "exclusions": {
+        "in_range": 4032,
+        "eligible": 3343,
+        "excluded_exclusive": {
+          "purge": 48,
+          "masked": 641,
+          "y_nan": 0,
+          "feature_nan": 0
+        },
+        "excluded_overlapping": {
+          "purge": 48,
+          "masked": 649,
+          "y_nan": 0,
+          "feature_nan": 0
+        }
+      }
+    }
+  },
+  "git_commit": "8f91abeb5093ef7a4eac7f87b78ac3612d7a1860",
+  "git_dirty": true,
+  "features": {
+    "any": [
+      "minutes_since_last_start",
+      "minutes_since_last_end",
+      "onsets_last_24h",
+      "onsets_last_7d",
+      "neighbors_active_at_t",
+      "national_active_count_at_t",
+      "hour_kyiv",
+      "weekday_kyiv",
+      "unit_code"
+    ],
+    "yellow": [
+      "minutes_since_last_start",
+      "minutes_since_last_end",
+      "onsets_last_24h",
+      "onsets_last_7d",
+      "neighbors_active_at_t",
+      "national_active_count_at_t",
+      "hour_kyiv",
+      "weekday_kyiv",
+      "unit_code",
+      "other_level_active_at_t"
+    ],
+    "red": [
+      "minutes_since_last_start",
+      "minutes_since_last_end",
+      "onsets_last_24h",
+      "onsets_last_7d",
+      "neighbors_active_at_t",
+      "national_active_count_at_t",
+      "hour_kyiv",
+      "weekday_kyiv",
+      "unit_code",
+      "other_level_active_at_t"
+    ]
+  }
+}

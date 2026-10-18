@@ -8,6 +8,7 @@ import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { runUpdate, readPayload, readHistory } from "./lib/runner.mjs";
 import { emptyState, applyHistory } from "./lib/live.mjs";
+import { m12 } from "./lib/m12_bundle.mjs";
 
 const root = new URL("../../", import.meta.url);
 const model = JSON.parse(readFileSync(new URL("netlify/live/model/model_live.json", root)));
@@ -24,7 +25,7 @@ const TOKEN = process.env.ALERTS_IN_UA_TOKEN;
 let clock = () => Date.now();
 
 async function tick() {
-  const st = await runUpdate({ fetchFn: fetch, store, token: TOKEN, now: Date.now(), model, regions, seed });
+  const st = await runUpdate({ fetchFn: fetch, store, token: TOKEN, now: Date.now(), model, regions, seed, m12 });
   const f = (await readPayload(store)).forecast;
   const c = {}; if (f) for (const u of Object.values(f.units)) c[u.state] = (c[u.state] || 0) + 1;
   console.log(new Date().toISOString(), `ok=${st.ok} active=${st.active_alerts} history=${st.history_unit}:${st.history_ok}`,
@@ -54,7 +55,7 @@ async function replayDump(days) {
   };
   const t0 = Date.now();
   for (; t <= end; t += 5 * MIN, n++) {
-    const st = await runUpdate({ fetchFn, store, token: "offline-replay", now: t, model, regions });
+    const st = await runUpdate({ fetchFn, store, token: "offline-replay", now: t, model, regions, m12 });
     if (!st.ok) throw new Error(`replay run at ${iso(t)} failed: ${st.error}`);
     if (n % 144 === 0) console.log(`replay ${iso(t)} (${n} runs, ${((Date.now() - t0) / 1e3).toFixed(0)} s)`);
   }

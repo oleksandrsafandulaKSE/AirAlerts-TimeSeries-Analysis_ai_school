@@ -2,6 +2,7 @@
 // EXPLORATORY: API data, its own section, never mixed with the study's official metrics (D-007, D-015).
 import { unitIntervals, covered } from "./features.mjs";
 import { knownAt, coverageAt } from "./live.mjs";
+import { knownByType } from "./models.mjs";
 
 const MIN = 60e3, HOUR = 60 * MIN, DAY = 24 * HOUR;
 export const SETTLE = 3 * HOUR;               // a snapshot is scored only from tau + 1 h + SETTLE on
@@ -192,4 +193,56 @@ export function historyPayload(state, snapshots, now, regions, { epoch = null } 
     };
   }
   return { now, exploratory: true, from_7d: from7, from_14d: from14, snapshots: snaps, units: out };
+}
+
+/**
+ * M12 §D: score ONE registry series (model version, type, H) from the snapv2 archive. Scored only when the registry is
+ * ACTIVE and only snapshots issued at tau >= activatedAt; an inactive series returns {status: "inactive"} and computes
+ * nothing (no reserved-week performance is ever exposed). Rules = M11 per series: not late; now >= tau + H + SETTLE;
+ * as issued "forecast" with no rejected record; confirmed coverage over [tau - 24 h, tau + H]; no rejection logged at
+ * >= tau - 24 h; not under a capped alert of the type at tau (reconciled). Label: an air-raid onset of the type in
+ * (tau, tau + H] (D-045). BSS = 1 - sum B(p) / sum B(p_baseline), pooled within the series only.
+ */
+export function scoreSeries(state, snapsV2, now, regions, { key, version, type, H, active, activatedAt, rejectionLog = [] }) {
+  if (!active) return { key, version, status: "inactive" };
+  if (!Number.isFinite(activatedAt)) throw new Error("scoreSeries: activatedAt missing for an active series");
+  const v0 = { ms: [], me: [], onsets: [] };
+  const kb = knownByType(state, now);
+  const ivs = unitIntervals(kb.byType[type]);
+  const covKey = type === "any" ? "coverage" : "levelCoverage";           // typed labels need confirmed levels
+  const cov = Object.fromEntries(regions.units.map(u => [u, mergeIntervals(coverageAt(state, u, now, covKey))]));
+  const rej = Object.fromEntries(regions.units.map(u => [u, rejectionTimes(state, rejectionLog, u)]));
+  const T = { overall: acc(), groups: {}, bins: Array.from({ length: 10 }, () => ({ rows: 0, sum_p: 0, positives: 0 })),
+              excluded: Object.fromEntries(["late", "before_activation", "other_version", ...REASONS.slice(2)].map(r => [r, 0])) };
+  for (const { key: k, value: sn } of snapsV2) {
+    const it = sn && sn.items && sn.items[key];
+    if (!it) continue;
+    if (it.version !== version) { T.excluded.other_version += 1; continue; }
+    const h = hourOfKey(k.replace("snapv2/", "snap/"));
+    if (!(sn.tau >= h) || sn.tau - h >= LATE_AFTER) { T.excluded.late += 1; continue; }
+    if (sn.tau < activatedAt) { T.excluded.before_activation += 1; continue; }
+    const tau = sn.tau;
+    for (const u of regions.units) {
+      const x = it.units[u];
+      let why = null;
+      if (now < tau + H + SETTLE) why = "unsettled";
+      else if (!x || x[0] !== "forecast" || typeof x[5] !== "number" || typeof x[2] !== "number") why = "not_forecast";
+      else if (x[3] === 1) why = "rejected_at_issue";
+      else if (!spans(cov[u], tau - LOOKBACK, tau + H)) why = "coverage_hole";
+      else if (rej[u].some(t => t >= tau - LOOKBACK && t <= now)) why = "rejected_after_issue";
+      else if (type !== "any" && (kb.unresolved[u] || []).some(([a]) => a > tau && a <= tau + H)) why = "level_unknown";
+      else { const v = ivs[u] || v0; if (covered(tau, v.ms, v.me)) why = "reconciled_under_alert"; }
+      if (why) { T.excluded[why] = (T.excluded[why] || 0) + 1; continue; }
+      const v = ivs[u] || v0;
+      const y = countIn(v.onsets, tau, tau + H) > 0 ? 1 : 0;
+      add(T.overall, x[5], x[2], y);
+      add(T.groups[regions.groups[u]] ||= acc(), x[5], x[2], y);
+      const b = T.bins[binOf(x[5])]; b.rows += 1; b.sum_p += x[5]; b.positives += y;
+    }
+  }
+  return { key, version, status: "active", exploratory: true, horizon_hours: H / HOUR, activated_at: activatedAt,
+           overall: summarise(T.overall), groups: Object.fromEntries(Object.entries(T.groups).map(([g, a]) => [g, summarise(a)])),
+           reliability: T.bins.map((b, i) => ({ lo: i / 10, hi: (i + 1) / 10, rows: b.rows, mean_p: b.rows ? b.sum_p / b.rows : null,
+                                                observed: b.rows ? b.positives / b.rows : null })),
+           excluded: T.excluded };
 }

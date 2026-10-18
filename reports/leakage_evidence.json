@@ -3,72 +3,84 @@
     "check": "Features unchanged when data after t is removed (real data, 33 times: active and standing alerts, gap edges, DST, cut-offs, off-hour times)",
     "test": "tests/test_leakage.py::test_real_data_truncation_invariant",
     "result": "PASS",
-    "pytest": "1 passed in 26.13s"
+    "pytest": "1 passed in 22.92s"
   },
   {
     "check": "Negative control caught: a feature using the final alert duration / a centred window",
     "test": "tests/test_leakage.py::test_real_data_negative_control_pinned_witnesses",
     "result": "PASS",
-    "pytest": "1 passed in 13.97s"
+    "pytest": "1 passed in 11.32s"
   },
   {
     "check": "Grid mask unchanged by truncation; the old D-009 rule (final duration) is caught",
     "test": "tests/test_grid.py::test_mask_truncation_invariant",
     "result": "PASS",
-    "pytest": "1 passed in 0.91s"
+    "pytest": "1 passed in 1.13s"
   },
   {
     "check": "Recent rate and raw persistence unchanged by truncation, H = 1 and H = 3",
     "test": "tests/test_leakage.py::test_baselines_truncation_invariant",
     "result": "PASS",
-    "pytest": "2 passed in 54.82s"
+    "pytest": "2 passed in 45.51s"
   },
   {
     "check": "Negative control caught: a recent-rate window that reads not-yet-known labels",
     "test": "tests/test_leakage.py::test_baselines_negative_control",
     "result": "PASS",
-    "pytest": "1 passed in 14.96s"
+    "pytest": "1 passed in 12.49s"
   },
   {
     "check": "Model predictions unchanged by truncation",
     "test": "tests/test_leakage.py::test_model_predictions_truncation_invariant",
     "result": "PASS",
-    "pytest": "1 passed in 13.53s"
+    "pytest": "1 passed in 11.97s"
   },
   {
     "check": "API loader -> grid -> features -> prediction unchanged by truncating the raw dump",
     "test": "tests/test_leakage.py::test_api_loader_to_predictor_truncation_invariant",
     "result": "PASS",
-    "pytest": "1 passed in 14.96s"
+    "pytest": "1 passed in 11.85s"
   },
   {
     "check": "Negative control caught on API data: final alert duration",
     "test": "tests/test_leakage.py::test_api_negative_control_final_duration",
     "result": "PASS",
-    "pytest": "1 passed in 2.11s"
+    "pytest": "1 passed in 1.94s"
+  },
+  {
+    "check": "M10 hours-under-alert inputs unchanged by truncation (real data, 10 times: active/ending/starting alerts, standing alert, gap edges, DST, cut-off)",
+    "test": "tests/test_m10_leakage.py::test_block_d_truncation_invariant",
+    "result": "PASS",
+    "pytest": "1 passed in 18.88s"
+  },
+  {
+    "check": "M10 negative control caught at all 10 pinned times: hours under alert without clipping at t",
+    "test": "tests/test_m10_leakage.py::test_block_d_negative_control_pinned",
+    "result": "PASS",
+    "pytest": "1 passed in 19.78s"
   },
   {
     "check": "Frozen baselines fit on train only; validation labels cannot change them",
     "test": "tests/test_run_all.py::test_frozen_baselines_fit_on_train_only",
     "result": "PASS",
-    "pytest": "1 passed in 1.93s"
+    "pytest": "1 passed in 2.77s"
   },
   {
     "check": "Test labels cannot change any pre-test output (H = 3 label poisoning)",
     "test": "tests/test_run_all.py::test_h3_label_poisoning_changes_nothing",
     "result": "PASS",
-    "pytest": "1 passed in 2.48s"
+    "pytest": "1 passed in 3.08s"
   },
   {
     "check": "Final test: joint access marker written before any test label is read",
     "test": "tests/test_final_test.py::test_marker_written_before_any_test_label",
     "result": "PASS",
-    "pytest": "1 passed in 4.82s"
+    "pytest": "1 passed in 8.63s"
   },
   {
     "check": "Final test: a changed predictor after access is refused",
     "test": "tests/test_final_test.py::test_new_preregistration_after_access_is_refused",
     "result": "PASS",
-    "pytest": "1 passed in 5.02s"
+    "pytest": "1 passed in 4.70s"
   }
 ]

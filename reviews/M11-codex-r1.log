@@ -1,0 +1,14 @@
+[codex] I’ll read the four priority files first, then check relevant code and tests for leakage and rule conflicts.
+[codex] > 'pwd; wc -l plans/M11.md CLAUDE.md DECISIONS.md .claude/skills/ts-leakage-audit/SKILL.md; cat plans/
+[codex] I’m applying the leakage-audit skill to check the scoring design and its tests, especially coverage confirmation and f
+[codex] > "nl -ba CLAUDE.md; nl -ba DECISIONS.md | sed -n '1,90p'; nl -ba plans/M11.md; rg --files -g 'AGENTS.
+[codex] > "cat netlify/live/lib/runner.mjs; cat netlify/live/lib/live.mjs; cat netlify/live/lib/features.mjs; 
+[codex] > "sed -n '1,95p' scripts/build_site.py; sed -n '205,285p' scripts/build_site.py; sed -n '1,180p' netl
+[codex] > "cat plans/M10.md; sed -n '1,210p' tests/test_live_parity.py; rg -n 'coverage|reject|gap|negative|st
+[codex] I found two concrete inconsistencies: the 14-day heatmap gets only seven days of history, and `state == "forecast"` does
+[codex] > "sed -n '1,35p' plans/M10.md; sed -n '44,62p' netlify/live/test/live.test.mjs; head -4 reports/offic
+[codex] > "rg -n 'gap_or_missing|under_alert|test_onsets|test_predictions|status.*=' src scripts extras improv
+[codex] ## BLOCKERS
+Reading prompt from stdin...
+session_id=01a14bd8-2091-7592-b338-bd434f4ead13
+output_path=reviews/M11-codex-r1.md

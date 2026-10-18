@@ -35,7 +35,20 @@ section counts (see "New alert system").
     hours) before the approved gap, the gap, and 24 hours after it; features whose look-back window touches the
     uncertainty zone are missing, and missing-feature rows are not scored (D-022–D-024).
   - **Excluded units:** Luhanska (permanent alert since 2022); Crimea is not in the data (D-008).
-  - **Exactly-30-minute alerts:** kept and counted (D-010).
+  - **Exactly-30-minute alerts:** kept and counted (D-010). There is no spike at exactly thirty minutes, so they are
+    not a parser artefact.
+  - **Exactly-one-hour alerts (parser-imputed ends): kept as-is by decision, pinned and documented** (M9;
+    `plans/notes/fabricated_1h_ends.md`).
+    - **Mechanism:** when a new alert starts at a location more than three hours after an earlier alert there that
+      never got an all-clear, the dataset's parser closes the earlier one at `started_at + 1h`.
+    - **Size:** a few hundred alerts, rising over time and concentrated in two frontline oblasts.
+    - **Causality limitation:** such an end is written only when the next alert at that location starts, so for
+      most affected oblast-hours it was not yet known at t. The truncation leakage test cannot see this, which is
+      documented in `tests/test_leakage.py`.
+    - **Impact:** no validation rows and a small share of test rows. A post-hoc sensitivity on frozen predictions,
+      with no refit, leaves the headline conclusion unchanged.
+    - **Numbers:** in the note. The count is a raising check in `tests/test_data_quality.py`, which lives outside
+      the fingerprinted pipeline code.
 
 <!-- GENERATED:data_facts START -->
 | Fact (official file) | Value |
@@ -92,6 +105,8 @@ Tests that ran on this build (they cover the listed cases; they are not a proof 
 | Model predictions unchanged by truncation | PASS | `tests/test_leakage.py::test_model_predictions_truncation_invariant` |
 | API loader -> grid -> features -> prediction unchanged by truncating the raw dump | PASS | `tests/test_leakage.py::test_api_loader_to_predictor_truncation_invariant` |
 | Negative control caught on API data: final alert duration | PASS | `tests/test_leakage.py::test_api_negative_control_final_duration` |
+| M10 hours-under-alert inputs unchanged by truncation (real data, 10 times: active/ending/starting alerts, standing alert, gap edges, DST, cut-off) | PASS | `tests/test_m10_leakage.py::test_block_d_truncation_invariant` |
+| M10 negative control caught at all 10 pinned times: hours under alert without clipping at t | PASS | `tests/test_m10_leakage.py::test_block_d_negative_control_pinned` |
 | Frozen baselines fit on train only; validation labels cannot change them | PASS | `tests/test_run_all.py::test_frozen_baselines_fit_on_train_only` |
 | Test labels cannot change any pre-test output (H = 3 label poisoning) | PASS | `tests/test_run_all.py::test_h3_label_poisoning_changes_nothing` |
 | Final test: joint access marker written before any test label is read | PASS | `tests/test_final_test.py::test_marker_written_before_any_test_label` |
@@ -205,6 +220,47 @@ For comparison, what was known before the test was scored:
 rear ones; the within-unit AUC is the harder question of ranking hours inside one oblast (D-025). Groups marked
 "low-n" have few scored hours or units left out of the within-unit AUC. At H = 3 the base rate and the reference
 baseline differ, so the two horizons are not comparable.
+
+### Uncertainty and calibration (M9, post-hoc analysis of frozen predictions)
+Computed by `scripts/run_extras.py` from the saved H = 1 predictions, with no refit. The human approved these
+test-period diagnostics explicitly, with three conditions:
+- every pre-declared output is shown;
+- every test number is post-hoc;
+- no model, calibration or feature decision is taken from a test number.
+
+The headline above is unchanged. All numbers are in `reports/extras/` (the README carries no hand-written result
+numbers, M5 rule):
+- `bss_ci.csv`: Brier skill vs the rolling recent rate with block-bootstrap intervals. Week blocks are primary
+  (D-013), with day and moving-day blocks as sensitivity; all oblasts of a block move together.
+- `dm_test.csv`: a row-weighted Diebold–Mariano test with Newey–West variance.
+- `corp.csv`, `corp_validation.png`, `corp_test_posthoc.png`: CORP reliability (PAV/isotonic, diagnostic only)
+  and the decomposition Brier = miscalibration − discrimination + uncertainty.
+- `calibration_ci.csv`: mean predicted minus observed per group, with intervals.
+
+**Reading** (the numbers are in the files above):
+- **Primary scheme, as pre-declared (week blocks, D-013):** on validation, the interval lies entirely below zero,
+  so the model is worse than the rolling recent rate there.
+  - That interval rests on very few week blocks. A percentile bootstrap with so few blocks is probably too
+    narrow, not just coarse.
+  - The day and moving-day sensitivity intervals include zero.
+- **On the test (post-hoc):** every interval includes zero, so there is no evidence of improvement over the recent
+  rate.
+- **Neither split shows a gain.** These are not equivalence claims, since no margin was set in advance, and
+  treating rows as independent would overstate certainty.
+- **CORP:** overall, the model has lower miscalibration but also lower Brier discrimination than the recent rate.
+  - *Hypothesis, not tested:* the recent rate's per-oblast level already separates busy from quiet oblasts, which
+    would explain the gap.
+  - Kyiv City gains through discrimination; the frontline loses on both terms.
+- **Within-oblast ranking:** pooled ROC-AUC mostly measures which oblast is active. The within-oblast AUC above is
+  higher for the model than for the recent rate, but:
+  - no interval was computed for it;
+  - it averages only the oblasts with enough onsets and non-onsets, which leaves out two frontline oblasts;
+  - the recent rate changes slowly, so it is close to chance within an oblast by construction; the stronger
+    reference is calibrated persistence.
+  - So this is a lead worth testing on fresh data, not an established advantage.
+- **Calibration by group:** the model under-forecasts the frontline in both splits, and the overall figure hides
+  this. Under the third condition, any fix (for example a frontline intercept) may only be judged on validation,
+  a backtest or fresh data, never on this test.
 
 ## New alert system (Sept–Oct 2026, exploratory)
 The frozen H = 1 model and the baselines (fitted on official train only) are scored on alerts.in.ua data: target =
@@ -383,6 +439,93 @@ How to read these rows:
 
 A clean check of the best idea needs new data: a later test period from the API collection (M6a).
 
+## Related-work checks (M10 — train backtest and validation only; no test label read)
+Ideas taken from a related project (github.com/yehor-o/time_series_air_alerts), checked with the M7 protocol
+(`plans/M10.md`, outputs in `reports/m10/`). Choices use the backtest folds inside train; validation is only reported;
+the final test is not used.
+
+**Non-air-raid rows (§A, a proxy).** That project found artillery warnings inside hromada-level rows. Variant L1 drops
+every hromada row before the oblast union; it also drops some real air-raid alerts (city hromadas). L0 is the current
+rule. Measured facts:
+
+<!-- GENERATED:m10_labels START -->
+| Period | Group | Onsets L0 → L1 | Share of hours under alert L0 → L1 | Base rate L0 → L1 |
+|---|---|---|---|---|
+| train | Frontline (8) | 46,910 → 50,086 | 0.3589 → 0.2980 | 0.1977 → 0.1955 |
+| train | Kyiv City | 2,044 → 2,044 | 0.0649 → 0.0649 | 0.0552 → 0.0552 |
+| train | All units | 78,961 → 82,090 | 0.1660 → 0.1456 | 0.0903 → 0.0922 |
+| train | Rear (15) | 30,007 → 29,960 | 0.0698 → 0.0697 | 0.0532 → 0.0531 |
+| validation | Frontline (8) | 1,038 → 1,154 | 0.7485 → 0.7351 | 0.4275 → 0.4417 |
+| validation | Kyiv City | 49 → 49 | 0.0699 → 0.0699 | 0.0672 → 0.0672 |
+| validation | All units | 1,954 → 2,070 | 0.3080 → 0.3036 | 0.1179 → 0.1217 |
+| validation | Rear (15) | 867 → 867 | 0.0890 → 0.0890 | 0.0758 → 0.0758 |
+
+| Train onsets, L0 → L1 matching | Kept | Shifted later | Disappeared | New in L1 |
+|---|---|---|---|---|
+| all units | 74,771 | 2,656 | 1,534 | 4,663 |
+
+| Variant | Split | Group | BSS vs its own recent rate | Within-unit AUC | Rows | Base rate |
+|---|---|---|---|---|---|---|
+| L0 | fold 2025-07-01 | All units | 0.0395 | 0.6554 | 25,401 | 0.1021 |
+| L0 | fold 2025-07-01 | Frontline (8) | 0.0322 | 0.5971 | 5,592 | 0.2586 |
+| L0 | fold 2025-10-01 | All units | 0.0361 | 0.7035 | 24,050 | 0.0912 |
+| L0 | fold 2025-10-01 | Frontline (8) | 0.0428 | 0.6317 | 4,212 | 0.2659 |
+| L0 | fold 2026-01-01 | All units | 0.0243 | 0.6742 | 23,329 | 0.1045 |
+| L0 | fold 2026-01-01 | Frontline (8) | 0.0222 | 0.6028 | 3,683 | 0.3198 |
+| L0 | fold 2026-04-01 | All units | 0.0244 | 0.6639 | 23,288 | 0.1063 |
+| L0 | fold 2026-04-01 | Frontline (8) | 0.0200 | 0.5814 | 3,588 | 0.3487 |
+| L0 | validation | All units | 0.0065 | 0.5590 | 11,160 | 0.1179 |
+| L0 | validation | Frontline (8) | 0.0135 | 0.5239 | 1,352 | 0.4275 |
+| L1 | fold 2025-07-01 | All units | 0.0350 | 0.6617 | 26,230 | 0.1097 |
+| L1 | fold 2025-07-01 | Frontline (8) | 0.0275 | 0.6093 | 6,421 | 0.2694 |
+| L1 | fold 2025-10-01 | All units | 0.0273 | 0.7075 | 24,374 | 0.0955 |
+| L1 | fold 2025-10-01 | Frontline (8) | 0.0350 | 0.6357 | 4,536 | 0.2765 |
+| L1 | fold 2026-01-01 | All units | 0.0237 | 0.6733 | 23,729 | 0.1062 |
+| L1 | fold 2026-01-01 | Frontline (8) | 0.0243 | 0.6047 | 4,083 | 0.3088 |
+| L1 | fold 2026-04-01 | All units | 0.0272 | 0.6730 | 23,564 | 0.1111 |
+| L1 | fold 2026-04-01 | Frontline (8) | 0.0344 | 0.6114 | 3,864 | 0.3605 |
+| L1 | validation | All units | 0.0134 | 0.5857 | 11,232 | 0.1217 |
+| L1 | validation | Frontline (8) | 0.0237 | 0.5935 | 1,424 | 0.4417 |
+<!-- GENERATED:m10_labels END -->
+
+- Dropping hromada rows does not remove frontline onsets; it adds some. Long hromada alerts (mostly Nikopol, in
+  Dnipropetrovska) hide later raion starts inside one merged interval, so L1 exposes them.
+- The frontline share of hours under alert falls; the frontline base rate barely moves.
+- So the hypothesis "hromada rows inflate the frontline base rate" is **not supported**. That L1 is somewhat easier to
+  predict on the frontline is a hypothesis: the backtest folds are split. The target is unchanged; a real fix needs each
+  row labelled by its message type (a new source, the human's decision). Brier is not comparable across L0 and L1.
+
+**Recency weighting (§B) and hours under alert (§C).** Fit rows get weight `0.5^(age/h)` on the V2 offset recipe; the
+rule is the M7 one (at least half a percent lower mean fold Brier and better in at least three of four folds).
+
+<!-- GENERATED:m10_folds START -->
+| Candidate (vs reference) | Mean fold Brier, reference | Mean fold Brier, candidate | Relative change | Folds improved | Passes the rule |
+|---|---|---|---|---|---|
+| recency half-life 730 d (vs equal weights) | 0.07388 | 0.07364 | -0.0033 | 4 | no |
+| recency half-life 365 d (vs equal weights) | 0.07388 | 0.07359 | -0.0040 | 4 | no |
+| recency half-life 182 d (vs equal weights) | 0.07388 | 0.07344 | -0.0059 | 4 | yes |
+| hours under alert, block D (vs V2 + chosen recency) | 0.07344 | 0.07335 | -0.0012 | 3 | no |
+<!-- GENERATED:m10_folds END -->
+
+The six-month half-life is chosen: it is the shortest candidate tried, the gain is small, and it has no confidence
+interval yet. The hours-under-alert block is rejected.
+
+**Stability on validation (§D).** Brier skill against the recent rate per Monday-UTC week and Kyiv day / night, all
+units (full table: `reports/m10/stability_validation.csv`):
+
+<!-- GENERATED:m10_stability START -->
+| Slice | Frozen headline (V0): BSS vs recent rate | M10 variant: BSS vs recent rate | Rows | Base rate |
+|---|---|---|---|---|
+| 2026-06-29 | -0.0066 | 0.0097 | 2,730 | 0.1007 |
+| 2026-07-06 | 0.0011 | 0.0095 | 2,870 | 0.1108 |
+| 2026-07-13 | -0.0215 | 0.0142 | 2,819 | 0.1359 |
+| 2026-07-20 | -0.0102 | 0.0149 | 2,741 | 0.1240 |
+| day | -0.0046 | 0.0115 | 7,495 | 0.1170 |
+| night | -0.0194 | 0.0136 | 3,665 | 0.1198 |
+<!-- GENERATED:m10_stability END -->
+
+Four weeks of one season only; the frozen headline is unchanged.
+
 ## Limitations
 - No text, Telegram or weather features; one pooled model; no hyperparameter search.
 - The test period is short (6 weeks) and loses several days to the recording gap; frontline validation is low-n.
@@ -392,6 +535,10 @@ A clean check of the best idea needs new data: a later test period from the API 
 - At H = 3 neighbouring rows share label windows, so rows are autocorrelated; any interval estimate needs week blocks.
 - The new-regime data has a different source, one month of history, and an open question about alert types.
 - Pre-registration files and the access marker are local files; they are only tamper-evident once committed.
+- The effective final test is about a month of scored hours, because of the recording gap and the look-back mask,
+  so intervals on the gain vs the recent rate are wide (`reports/extras/bss_ci.csv`).
+- A few hundred alert ends in the official file are parser-imputed and not known at t (see Data). They are kept by
+  decision and pinned by a test, and the truncation leakage test cannot detect them.
 
 ## Future work
 Automated daily API collection and monthly re-evaluation (M6, D-016); weekly refit inside the test window (D-014);

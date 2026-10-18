@@ -1,0 +1,61 @@
+[codex] I’ll read the priority files, then check the existing code and tests for contradictions, leakage risks, and gaps in th
+[codex] > 'wc -l plans/M9.md plans/notes/fabricated_1h_ends.md reviews/M1c-exact-1h-check-codex-r1.md reviews/
+[codex] > 'cat plans/M9.md plans/notes/fabricated_1h_ends.md reviews/M1c-exact-1h-check-codex-r1.md reviews/M1
+[codex] > 'nl -ba CLAUDE.md; nl -ba DECISIONS.md'
+[codex] > 'cat reviews/M1c-exact-1h-check-codex-r1.md reviews/M1c-exact-1h-check-claude-r1.md'
+[codex] I’m applying the repository’s `ts-leakage-audit` skill. The plan cites D-028 and D-030, but the decision log ends at
+[codex] > "rg --files -g AGENTS.md -g '*predictions*' -g '*calibration*' -g '*metrics.csv' -g '*preregistratio
+[codex] > "sed -n '1,280p' tests/test_leakage.py; sed -n '1,240p' src/evaluate.py"
+[codex] > "head -n 4 reports/official/test_predictions.csv reports/official/val_predictions.csv reports/improv
+[codex] > "sed -n '1,170p' src/grid.py; sed -n '1,125p' src/data.py; nl -ba plans/M9.md"
+[codex] > ".venv/bin/python -B - <<'PY'
+import pandas as pd
+from src import config, data, grid
+alerts=data.load_official('data/official_data_en.csv',config.official())
+ivs=grid.unit_intervals(alerts)
+for u,(_,_,on) in ivs.items():
+    on=pd.to_datetime(on,utc=True)
+    a=int(((on>=pd.Timestamp('2025-09-01',tz='UTC'))&(on<pd.Timestamp('2025-12-01',tz='UTC'))).sum()
+    b=int(((on>=pd.Timestamp('2026-01-01',tz='UTC'))&(on<pd.Timestamp('2026-04-01',tz='UTC'))).sum()
+    ratio=(b/90)/(a/91) if a else None
+    if ratio is None or ratio<.3:
+        print(u,a,b,ratio)
+p=pd.read_csv('reports/official/test_predictions.csv')
+s=p[p.status=='scored'].copy()
+s['t']=pd.to_datetime(s.t,utc=True)
+print('scored',len(s),'hours',s.t.nunique(),'range',s.t.min(),s.t.max())
+print('hourly unit count',s.groupby('t').size().min(),s.groupby('t').size().max())
+v=pd.read_csv('reports/official/val_predictions.csv')
+r=pd.read_csv('reports/improve/validation_predictions.csv')
+print('validation keys equal',set(zip(v.unit,v.t))==set(zip(r.unit,r.t)),'rows',len(v),len(r))
+PY"
+[codex] > ".venv/bin/python -B -c 'import pandas as pd
+from src import config, data, grid
+alerts=data.load_official(\"data/official_data_en.csv\",config.official())
+ivs=grid.unit_intervals(alerts)
+for u,(_,_,on) in ivs.items():
+ on=pd.to_datetime(on,utc=True)
+ a=int(((on>=pd.Timestamp(\"2025-09-01\",tz=\"UTC\"))&(on<pd.Timestamp(\"2025-12-01\",tz=\"UTC\"))).
+ b=int(((on>=pd.Timestamp(\"2026-01-01\",tz=\"UTC\"))&(on<pd.Timestamp(\"2026-04-01\",tz=\"UTC\"))).
+ ratio=(b/90)/(a/91) if a else None
+ if ratio is None or ratio<.3: print(u,a,b,ratio)
+p=pd.read_csv(\"reports/official/test_predictions.csv\")
+s=p[p.status==\"scored\"].copy()
+s[\"t\"]=pd.to_datetime(s.t,utc=True)
+print(\"scored\",len(s),\"hours\",s.t.nunique(),\"range\",s.t.min(),s.t.max())
+print(\"hourly unit count\",s.groupby(\"t\").size().min(),s.groupby(\"t\").size().max())
+v=pd.read_csv(\"reports/official/val_predictions.csv\")
+r=pd.read_csv(\"reports/improve/validation_predictions.csv\")
+print(\"validation keys equal\",set(zip(v.unit,v.t))==set(zip(r.unit,r.t)),\"rows\",len(v),len(r))'"
+[codex] Scored hours contain between 1 and 22 eligible units, so B2’s equal weighting of hourly means tests a different quanti
+[codex] > ".venv/bin/python -B -c 'import pandas as pd
+p=pd.read_csv(\"reports/official/test_predictions.csv\")
+s=p[p.status==\"scored\"].copy()
+s[\"d\"]=(s.p_model-s.y)**2-(s.p_recent_rate-s.y)**2
+print(\"row_weighted_d\",s.d.mean(),\"equal_hour_d\",s.groupby(\"t\").d.mean().mean())
+for f in [\"reports/official/val_predictions.csv\",\"reports/improve/validation_predictions.csv\"]:
+ a=pd.read_csv(f); print(f,\"duplicate_keys\",a.duplicated([\"unit\",\"t\"]).sum())'"
+[codex] ## BLOCKERS
+Reading prompt from stdin...
+session_id=01a14ad7-765a-7ae3-8030-4fc5614e1ce7
+output_path=reviews/M9-codex-r1.md

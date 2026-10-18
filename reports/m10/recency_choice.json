@@ -1,0 +1,13 @@
+{
+  "candidates": [
+    null,
+    730,
+    365,
+    182
+  ],
+  "chosen_half_life_days": 182,
+  "validation_brier": {
+    "V2": 0.07694655053297902,
+    "V2_recency": 0.07650758624312756
+  }
+}

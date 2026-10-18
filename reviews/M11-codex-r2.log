@@ -1,0 +1,13 @@
+[codex] I’ll read the six priority files, check each prior finding and provisional decision against the project rules, then in
+[codex] > 'cat plans/M11.md reviews/M11-codex-r1.md reviews/M11-claude-r1.md CLAUDE.md DECISIONS.md .claude/sk
+[codex] > "wc -l plans/M11.md reviews/M11-codex-r1.md reviews/M11-claude-r1.md CLAUDE.md DECISIONS.md; tail -4
+[codex] I’m applying the supplied leakage-audit skill to the archive-to-score boundary. The updated plan addresses most prior 
+[codex] > 'cat DECISIONS.md; cat plans/M8.md; cat reviews/M8-consensus.md'
+[codex] > "cat netlify/live/lib/runner.mjs; cat netlify/live/lib/live.mjs; cat netlify/live/lib/features.mjs; 
+[codex] > "nl -ba netlify/live/lib/runner.mjs | sed -n '1,155p'; nl -ba netlify/live/lib/live.mjs | sed -n '1,
+[codex] > "nl -ba netlify/live/lib/live.mjs | sed -n '65,163p'; nl -ba plans/M11.md | sed -n '28,96p'; nl -ba 
+[codex] The rejection safeguard is still incomplete: it checks only cautions saved at issue time, while `applyHistory` can later
+[codex] ## PREVIOUS ITEMS
+Reading prompt from stdin...
+session_id=01a14bdb-c077-7cd2-a45b-69b7d1e6d9b8
+output_path=reviews/M11-codex-r2.md

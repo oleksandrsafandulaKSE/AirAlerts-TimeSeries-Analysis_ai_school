@@ -1,0 +1,40 @@
+{
+  "label": "post-hoc analysis of frozen predictions (M9; plans/M9.md \u00a70)",
+  "git_commit": "163177a856f714df873a8e16d3e22266285fb4e2",
+  "git_dirty_extras_code": true,
+  "extras_code_sha256": "e0375545f9ad3ed0cc6ae040ae4322d68bbe76899a4175661ffb588f8ab88ddf",
+  "inputs_sha256": {
+    "data/official_data_en.csv": "b396f87696243069eec0219880e87dcd642b20beb0a7bae0d0e1f61e1ed20ec4",
+    "reports/official/test_predictions.csv": "e3715e97093602bcb10b42f73ef86198ef669b77ceea26b445aedce80edef80c",
+    "reports/official/val_predictions.csv": "2ef10f58cf1260fc73ae8a749ed5060b24915b32a0890ad6fb03264385a6bb5a",
+    "reports/improve/validation_predictions.csv": "f62e55d853d452c740677d482906cf8a6b2f164167caf030ce1f0948bb2ba1a0",
+    "reports/official/metrics.csv": "87eb1b16dfea0e4176bda7e5c813be7b3661a4c770be95fae86b744a1d5c14c4",
+    "reports/official/metrics_validation.csv": "4281204c644d8e0394f2363d5083bd6b4c75eac4a84f7a27584d4a350e196511",
+    "reports/official/calibration_in_the_large.csv": "11816dc1f109606a11c06591177c260326cee514ed02fcb94e2efdbbc0d491d3"
+  },
+  "seed": 20261017,
+  "n_boot": 10000,
+  "nw_lags": [
+    24,
+    72
+  ],
+  "primary_scheme": "week",
+  "exact_duration_pins": {
+    "3600": {
+      "total": 255,
+      "by_level": {
+        "hromada": 109,
+        "raion": 87,
+        "oblast": 59
+      }
+    },
+    "1800": {
+      "total": 38,
+      "by_level": {
+        "oblast": 24,
+        "raion": 13,
+        "hromada": 1
+      }
+    }
+  }
+}

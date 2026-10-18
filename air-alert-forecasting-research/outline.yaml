@@ -1,0 +1,111 @@
+topic: "GitHub projects and academic papers on forecasting air-raid alerts with time series: best practices"
+created: 2026-10-17
+time_range: "since 2022 (classic methodology papers allowed as foundations)"
+
+items:
+  # --- A. Ukraine air-alert specific ---
+  - id: pavlyshenko_2024
+    name: "Pavlyshenko & Pavlyshenko, Predictive Analytics of Air Alerts in the Russian-Ukrainian War (arXiv:2411.14625)"
+    category: ukraine_alerts
+    note: "Only academic paper forecasting UA alerts; state target, per-region RF, no baselines."
+  - id: vadimkin_dataset
+    name: "Vadimkin/ukrainian-air-raid-sirens-dataset (+ issues #3-#7)"
+    category: ukraine_alerts
+    note: "Our data source; Telegram-parser provenance, swapped columns, wrong durations, 2026-09-07 freeze."
+  - id: cohort_ceo_of_second_hand
+    name: "ceo-of-second-hand/air-raid-alerts-forecast"
+    category: peer_repo
+    note: "Onset 3h; BSS +10.4% vs recency; pooled AUC 0.91 vs within-oblast 0.70; purging; test seen 3x."
+  - id: cohort_dashulya
+    name: "Dashulya-coder/AlertForecast"
+    category: peer_repo
+    note: "Kyiv-only; naive 30-min flag leak inflates persistence PR-AUC; planted-leak tests."
+  - id: cohort_vladislawww
+    name: "Vladislawww/air-raid-alert-forecast"
+    category: peer_repo
+    note: "RF + Platt; base-rate shift 6% -> 10.6% caused under-prediction on test."
+  - id: cohort_ivansnezhok
+    name: "IvanSnezhok/air-raid-forecast-ua"
+    category: peer_repo
+    note: "Learned region lead-lag; Telegram/news ablation with time-fair baseline."
+  - id: cohort_nazar
+    name: "nazar-andriievych/ukraine-air-alerts-analysis"
+    category: peer_repo
+    note: "Raion-level; weather oracle-vs-forecast ablation template."
+  - id: cohort_others
+    name: "Other cohort repos (Kamenqq, gklymenko, mykhailoisupov, yeliena-bochagova, endrusmah, MaksimPrykhodko)"
+    category: peer_repo
+    note: "Count targets, oblast-only filter pitfall, volunteer data, misused accuracy metrics."
+  - id: pre2026_student_repos
+    name: "Pre-2026 student repos (HliebOcheretianyi/AirAlert_predictions, TeamMLPythonAM2/AirAlarmsApp, shymanskyimarian-ux, sortafreel/dmbm)"
+    category: peer_repo
+    note: "ISW + weather + Telegram features; publication-lag look-ahead risk."
+  - id: api_ecosystem
+    name: "alerts.in.ua API + alerts-ua/alerts-in-ua-py, PaulAnnekov/uasiren (ukrainealarm)"
+    category: ukraine_alerts
+    note: "New-regime data access; relevant to M6."
+  - id: yellow_red_reform
+    name: "Yellow/red alert reform primary documents (CabMin No.1092, ArmyInform, Euromaidan Press)"
+    category: ukraine_alerts
+    note: "Criteria set weekly -> new regime itself non-stationary (D-015)."
+  - id: external_covariates
+    name: "External covariate datasets (Kaggle Massive Missile Attacks, VIINA, DiXi Energy Map, time-machine-data)"
+    category: ukraine_alerts
+    note: "Future-work features / regime-shift explanation; timing constraints."
+
+  # --- B. Analogous domains & methods ---
+  - id: btscs_hazard
+    name: "Beck, Katz & Tucker 1998 'Taking Time Seriously' + Carter & Signorino 2010 'Back to the Future'"
+    category: methods
+    note: "Discrete-time hazard / duration dependence; justifies time-since-last features."
+  - id: hawkes_conflict_crime
+    name: "Self-exciting point processes: Mohler et al. 2011, Lewis et al. 2012 (Iraq), Zammit-Mangion et al. 2012, Cseke et al. 2016, Euromaidan Hawkes 2024"
+    category: methods
+    note: "Self-excitation analogs; no Hawkes study of UA alerts exists."
+  - id: csep_etas
+    name: "CSEP / ETAS next-day earthquake forecast testing (Lombardi & Marzocchi 2010)"
+    category: methods
+    note: "Prospective testing of P(event in window) under clustering; error bars too narrow."
+  - id: views_challenge
+    name: "ViEWS early-warning system + 2023/24 Prediction Challenge (Hegre et al. 2025)"
+    category: methods
+    note: "Pre-registered benchmarks, fixed scoring rules, true out-of-sample windows."
+  - id: spatiotemporal_deep
+    name: "Spatio-temporal deep models for conflict (Radford 2022 ConvLSTM, Brandt et al. 2022 ST-GCN, von der Maase 2025, DynAttn 2025)"
+    category: methods
+    note: "Small gains over strong baselines; supports 'simple + correct'."
+  - id: gbm_lag_features
+    name: "Gradient boosting on lag + calendar features (M5 competition lessons, LightGBM)"
+    category: methods
+    note: "Dominant practical model family for tabular time-series."
+  - id: sepsis_onset
+    name: "Clinical event-onset prediction review (Moor et al. 2021, sepsis)"
+    category: methods
+    note: "Label definition, horizon, indirect-labelling leakage; analog to at-risk masking."
+
+  # --- C. Evaluation & leakage practice ---
+  - id: scoring_rules_corp
+    name: "Proper scoring rules + CORP reliability diagrams (Gneiting & Raftery 2007; Dimitriadis, Gneiting & Jordan 2021)"
+    category: evaluation
+    note: "Brier skill, PAV reliability, Brier decomposition; upgrade for D-006 plot."
+  - id: ts_cv_purging
+    name: "Time-series CV, purging & embargo (Bergmeir & Benitez 2012; Lopez de Prado 2018)"
+    category: evaluation
+    note: "Walk-forward and cut-off purging."
+  - id: rare_event_metrics
+    name: "Rare-event calibration and PR-AUC vs ROC-AUC; pooled vs within-unit AUC"
+    category: evaluation
+    note: "Imbalanced metrics; pooled AUC mostly measures which oblast is active."
+  - id: forecast_comparison_tests
+    name: "Comparing forecasts: Diebold-Mariano, Giacomini-White, block bootstrap"
+    category: evaluation
+    note: "Is the gain over recent-rate real? Clustered events need block resampling."
+  - id: drift_recalibration
+    name: "Distribution shift and online recalibration (Gupta & Ramdas 2023 Online Platt + Calibeating)"
+    category: evaluation
+    note: "Post-reform recalibration story; analog to rolling recent-rate shrinkage."
+
+execution:
+  batch_size: 5
+  items_per_agent: 1
+  output_dir: ./air-alert-forecasting-research/results

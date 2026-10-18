@@ -1,0 +1,285 @@
+{
+  "plan": "plans/M10.md",
+  "test_labels_read": false,
+  "posthoc": false,
+  "stage_runs": {
+    "recency": {
+      "git_commit": "097942d2fa39714e8d07f5b39394c57704e595a2",
+      "git_dirty": true,
+      "at": "2026-10-17T22:43:24.645541+00:00",
+      "invocation": [
+        "labels",
+        "recency",
+        "exposure",
+        "stability"
+      ],
+      "data_sha256": "b396f87696243069eec0219880e87dcd642b20beb0a7bae0d0e1f61e1ed20ec4",
+      "data_range": [
+        "2022-03-15 16:10:34+00:00",
+        "2026-09-07 05:28:22+00:00"
+      ],
+      "row_counts": {
+        "raw_rows": 299275,
+        "duplicate_rows": 113845,
+        "dedup_rows": 185430,
+        "excluded_rows": 1,
+        "final_rows": 185429
+      },
+      "l0_frame_shape": [
+        914112,
+        28
+      ],
+      "l0_frame_t_range": [
+        "2022-03-23 00:00:00+00:00",
+        "2026-07-26 23:00:00+00:00"
+      ],
+      "chosen_half_life_days": 182,
+      "folds": {
+        "2025-07-01": {
+          "fit": 581014,
+          "early": 6482,
+          "score": 25401,
+          "score_base_rate": 0.10212196370221645
+        },
+        "2025-10-01": {
+          "fit": 622328,
+          "early": 6039,
+          "score": 24050,
+          "score_base_rate": 0.09118503118503118
+        },
+        "2026-01-01": {
+          "fit": 662123,
+          "early": 6084,
+          "score": 23329,
+          "score_base_rate": 0.10446225727635132
+        },
+        "2026-04-01": {
+          "fit": 699880,
+          "early": 5469,
+          "score": 23288,
+          "score_base_rate": 0.10632085194091377
+        }
+      },
+      "validation_rows": 11160,
+      "validation_base_rate": 0.11792114695340501
+    },
+    "labels": {
+      "git_commit": "097942d2fa39714e8d07f5b39394c57704e595a2",
+      "git_dirty": true,
+      "at": "2026-10-17T22:43:24.645541+00:00",
+      "invocation": [
+        "labels",
+        "recency",
+        "exposure",
+        "stability"
+      ],
+      "data_sha256": "b396f87696243069eec0219880e87dcd642b20beb0a7bae0d0e1f61e1ed20ec4",
+      "data_range": [
+        "2022-03-15 16:10:34+00:00",
+        "2026-09-07 05:28:22+00:00"
+      ],
+      "row_counts": {
+        "raw_rows": 299275,
+        "duplicate_rows": 113845,
+        "dedup_rows": 185430,
+        "excluded_rows": 1,
+        "final_rows": 185429
+      },
+      "l0_frame_shape": [
+        914112,
+        28
+      ],
+      "l0_frame_t_range": [
+        "2022-03-23 00:00:00+00:00",
+        "2026-07-26 23:00:00+00:00"
+      ],
+      "nan_reasons": [],
+      "counts": {
+        "L0": {
+          "validation_rows": 11160,
+          "validation_base_rate": 0.11792114695340501,
+          "frame_shape": [
+            914112,
+            28
+          ]
+        },
+        "L1": {
+          "validation_rows": 11232,
+          "validation_base_rate": 0.12170584045584046,
+          "frame_shape": [
+            914112,
+            28
+          ]
+        }
+      },
+      "l1_alerts": 164617,
+      "l0_alerts": 185429
+    },
+    "exposure": {
+      "git_commit": "097942d2fa39714e8d07f5b39394c57704e595a2",
+      "git_dirty": true,
+      "at": "2026-10-17T22:43:24.645541+00:00",
+      "invocation": [
+        "labels",
+        "recency",
+        "exposure",
+        "stability"
+      ],
+      "data_sha256": "b396f87696243069eec0219880e87dcd642b20beb0a7bae0d0e1f61e1ed20ec4",
+      "data_range": [
+        "2022-03-15 16:10:34+00:00",
+        "2026-09-07 05:28:22+00:00"
+      ],
+      "row_counts": {
+        "raw_rows": 299275,
+        "duplicate_rows": 113845,
+        "dedup_rows": 185430,
+        "excluded_rows": 1,
+        "final_rows": 185429
+      },
+      "l0_frame_shape": [
+        914112,
+        28
+      ],
+      "l0_frame_t_range": [
+        "2022-03-23 00:00:00+00:00",
+        "2026-07-26 23:00:00+00:00"
+      ],
+      "accepted": false,
+      "score_rows": {
+        "2025-07-01": 25401,
+        "2025-10-01": 24050,
+        "2026-01-01": 23329,
+        "2026-04-01": 23288
+      }
+    },
+    "final_validation": {
+      "git_commit": "097942d2fa39714e8d07f5b39394c57704e595a2",
+      "git_dirty": true,
+      "at": "2026-10-17T22:43:24.645541+00:00",
+      "invocation": [
+        "labels",
+        "recency",
+        "exposure",
+        "stability"
+      ],
+      "data_sha256": "b396f87696243069eec0219880e87dcd642b20beb0a7bae0d0e1f61e1ed20ec4",
+      "data_range": [
+        "2022-03-15 16:10:34+00:00",
+        "2026-09-07 05:28:22+00:00"
+      ],
+      "row_counts": {
+        "raw_rows": 299275,
+        "duplicate_rows": 113845,
+        "dedup_rows": 185430,
+        "excluded_rows": 1,
+        "final_rows": 185429
+      },
+      "l0_frame_shape": [
+        914112,
+        28
+      ],
+      "l0_frame_t_range": [
+        "2022-03-23 00:00:00+00:00",
+        "2026-07-26 23:00:00+00:00"
+      ],
+      "chosen_variant": "V2 + recency h=182 d",
+      "features": [
+        "minutes_since_last_start",
+        "minutes_since_last_end",
+        "onsets_last_24h",
+        "onsets_last_7d",
+        "neighbors_active_at_t",
+        "national_active_count_at_t",
+        "hour_kyiv",
+        "weekday_kyiv",
+        "unit_code"
+      ],
+      "validation_rows": 11160,
+      "validation_base_rate": 0.11792114695340501
+    },
+    "stability": {
+      "git_commit": "097942d2fa39714e8d07f5b39394c57704e595a2",
+      "git_dirty": true,
+      "at": "2026-10-17T22:43:24.645541+00:00",
+      "invocation": [
+        "labels",
+        "recency",
+        "exposure",
+        "stability"
+      ],
+      "data_sha256": "b396f87696243069eec0219880e87dcd642b20beb0a7bae0d0e1f61e1ed20ec4",
+      "data_range": [
+        "2022-03-15 16:10:34+00:00",
+        "2026-09-07 05:28:22+00:00"
+      ],
+      "row_counts": {
+        "raw_rows": 299275,
+        "duplicate_rows": 113845,
+        "dedup_rows": 185430,
+        "excluded_rows": 1,
+        "final_rows": 185429
+      },
+      "l0_frame_shape": [
+        914112,
+        28
+      ],
+      "l0_frame_t_range": [
+        "2022-03-23 00:00:00+00:00",
+        "2026-07-26 23:00:00+00:00"
+      ],
+      "nan_reasons": [
+        "week=2026-06-29: V0/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "week=2026-06-29: V2/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "week=2026-06-29: M10/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+        "week=2026-06-29: recent_rate/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)"
+      ],
+      "rows": 11160,
+      "base_rate": 0.11792114695340501,
+      "t_range": [
+        "2026-06-29 00:00:00+00:00",
+        "2026-07-26 23:00:00+00:00"
+      ]
+    }
+  },
+  "code_fingerprint_headline": "e809e0f9f3d8c7868aaa0a81f6e564b36a9bc35f8211208d5d1a7784bd77752d",
+  "python": "3.13.5",
+  "packages": {
+    "pandas": "3.0.6",
+    "numpy": "2.5.4",
+    "scikit-learn": "1.9.1",
+    "lightgbm": "4.7.0",
+    "matplotlib": "3.11.2",
+    "pytest": "9.1.1",
+    "requests": "2.34.2",
+    "streamlit": "1.65.0"
+  },
+  "fold_cuts": [
+    "2025-07-01",
+    "2025-10-01",
+    "2026-01-01",
+    "2026-04-01"
+  ],
+  "half_lives": [
+    null,
+    730,
+    365,
+    182
+  ],
+  "block_d": [
+    "under_alert_hours_3h",
+    "under_alert_hours_24h",
+    "under_alert_hours_7d"
+  ],
+  "base_features": [
+    "minutes_since_last_start",
+    "minutes_since_last_end",
+    "onsets_last_24h",
+    "onsets_last_7d",
+    "neighbors_active_at_t",
+    "national_active_count_at_t",
+    "hour_kyiv",
+    "weekday_kyiv",
+    "unit_code"
+  ]
+}

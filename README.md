@@ -8,9 +8,14 @@
 Final test, H = 1 (scored once): Brier skill of the model vs the rolling recent-rate baseline = **-0.0101** on 13,116 rows (base rate 0.1390): the model does NOT beat the rolling recent-rate baseline.
 <!-- GENERATED:headline END -->
 
-**Status (13 Oct 2026):** M1–M5 implemented (see `DECISIONS.md`, `plans/`, `reviews/`). Results site: `site/index.html`
-(self-contained; Netlify-ready, see "How to run"). Open decision for the human: which API alert types the exploratory
-section counts (see "New alert system").
+**Live site: <https://air-alert-forecasting.netlify.app>** — an interactive map of the chance that a new air-raid
+alert starts in each oblast, updated every five minutes from alerts.in.ua (a student project, not an official warning
+system; always follow official alerts). Tabs: Map, Replay, Forecast check, How good is it?, What kind of alert?, About.
+
+**Status (18 Oct 2026):** M1–M5 and the post-deadline milestones M6a, M6c-1, M7–M13 are implemented (see
+`DECISIONS.md`, `plans/`, `reviews/`). The map shows the one-hour forecast of the current model; the new models trained
+on the new alert system (M12: one to twenty-four hours, yellow/red) are bundled but switched off until their test week
+is scored (M12 session two). The switch is made by hand (`netlify/DEPLOY.md`).
 
 ## Problem framing
 - **Why "a new alert starts" and not "an alert is active":** being under alert at t almost guarantees being under alert
@@ -560,5 +565,5 @@ python scripts/run_all.py --config new_regime_all_types
 python scripts/build_site.py --evidence              # site/index.html + README generated blocks
 pytest -q
 streamlit run app/streamlit_app.py                   # local results viewer
-npx netlify-cli deploy --dir site --prod             # needs your Netlify login
+npx netlify-cli deploy --prod                        # needs your Netlify login; steps in netlify/DEPLOY.md
 ```

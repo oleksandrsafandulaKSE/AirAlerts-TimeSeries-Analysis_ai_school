@@ -1,5 +1,7 @@
 # Deploying the live map (M8)
 
+Production: <https://air-alert-forecasting.netlify.app> (Netlify project `air-alert-forecasting`, deployed with `netlify-cli@17.38.1`; visitor access is public — `sso_login` off).
+
 The steps below need your Netlify login and the API token. Claude does not run them.
 
 ## 1. Build the assets locally

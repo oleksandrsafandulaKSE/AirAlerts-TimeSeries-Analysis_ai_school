@@ -1,0 +1,187 @@
+{
+  "label": "EXPLORATORY: alerts.in.ua event-time reconstruction, one test week",
+  "stage": "test",
+  "source": "api (alerts.in.ua), air_raid only, never mixed with official",
+  "view": "event-time reconstruction (collect.as_reconstructed_at), NOT a replay of what was observed live",
+  "split": {
+    "name": "first",
+    "grid_start": "2026-09-13 00:00:00+00:00",
+    "train": "(Timestamp('2026-09-13 00:00:00+0000', tz='UTC'), Timestamp('2026-10-04 00:00:00+0000', tz='UTC'))",
+    "val": "(Timestamp('2026-10-04 00:00:00+0000', tz='UTC'), Timestamp('2026-10-11 00:00:00+0000', tz='UTC'))",
+    "test_start": "2026-10-11 00:00:00+00:00",
+    "test_end": "2026-10-17 19:00:00+00:00"
+  },
+  "coverage": {
+    "history_start": "2026-09-12 17:00:43+00:00",
+    "coverage_end": "2026-10-17 19:36:38+00:00",
+    "holes": []
+  },
+  "loader": {
+    "datastore_rows": 20301,
+    "distinct_ids": 20270,
+    "reconstructed_records": 20266,
+    "reconstruct_at": "2026-10-17 19:36:38+00:00",
+    "records_raw": 20266,
+    "excluded_uid_records": {},
+    "alert_types": {
+      "air_raid": 19923,
+      "artillery_shelling": 342,
+      "urban_fights": 1
+    },
+    "alert_types_dropped": {
+      "artillery_shelling": 342,
+      "urban_fights": 1
+    },
+    "duplicate_ids_dropped": 0,
+    "open_alerts": 79,
+    "open_by_unit": {
+      "dnipropetrovska": 11,
+      "kharkivska": 10,
+      "donetska": 8,
+      "zaporizka": 7,
+      "kyivska": 7,
+      "kirovohradska": 6,
+      "vinnytska": 6,
+      "chernihivska": 5,
+      "sumska": 5,
+      "poltavska": 4,
+      "cherkaska": 4,
+      "zhytomyrska": 4,
+      "odeska": 1,
+      "kyiv_city": 1
+    },
+    "open_started_in_window": 78,
+    "alerts": 19923
+  },
+  "alert_range": [
+    "2026-03-10 14:01:38+00:00",
+    "2026-10-17 19:24:35+00:00"
+  ],
+  "frames": {
+    "any_h1": [
+      20040,
+      17
+    ],
+    "yellow_h1": [
+      20040,
+      18
+    ],
+    "red_h1": [
+      20040,
+      18
+    ],
+    "any_h3": [
+      19992,
+      17
+    ],
+    "yellow_h3": [
+      19992,
+      18
+    ],
+    "red_h3": [
+      19992,
+      18
+    ]
+  },
+  "eligibility": {
+    "any_h1": {},
+    "yellow_h1": {},
+    "red_h1": {},
+    "any_h3": {},
+    "yellow_h3": {},
+    "red_h3": {}
+  },
+  "inputs_sha256": {
+    "datastore": "3c2bf258b6513a3439f2512a8a8e269829f9ddaf7cd05a685b66e92d88aa28f2",
+    "pull_log": "6360969be8895e9230c979e36d592fd84b42b942df3c0feaa773bffd975b5e96",
+    "coverage_holes": "1c2c476b2e818627a1f5828572eb76b744ab92ced56823b7338bc53c1bf8b5f5"
+  },
+  "code_fingerprint": "a9a927516e68195c2b7ec29b233971f030931b79f446615f71e4d0a5876ab691",
+  "features": {
+    "any": [
+      "minutes_since_last_start",
+      "minutes_since_last_end",
+      "onsets_last_24h",
+      "onsets_last_7d",
+      "neighbors_active_at_t",
+      "national_active_count_at_t",
+      "hour_kyiv",
+      "weekday_kyiv",
+      "unit_code"
+    ],
+    "yellow": [
+      "minutes_since_last_start",
+      "minutes_since_last_end",
+      "onsets_last_24h",
+      "onsets_last_7d",
+      "neighbors_active_at_t",
+      "national_active_count_at_t",
+      "hour_kyiv",
+      "weekday_kyiv",
+      "unit_code",
+      "other_level_active_at_t"
+    ],
+    "red": [
+      "minutes_since_last_start",
+      "minutes_since_last_end",
+      "onsets_last_24h",
+      "onsets_last_7d",
+      "neighbors_active_at_t",
+      "national_active_count_at_t",
+      "hour_kyiv",
+      "weekday_kyiv",
+      "unit_code",
+      "other_level_active_at_t"
+    ]
+  },
+  "git_commit": "33e84dc2d8d09fa69472ccc584943b0e57ff25f4",
+  "git_dirty": true,
+  "python": "3.13.5",
+  "packages": {
+    "pandas": "3.0.6",
+    "numpy": "2.5.4",
+    "scikit-learn": "1.9.1",
+    "lightgbm": "4.7.0",
+    "matplotlib": "3.11.2"
+  },
+  "nan_reasons": {
+    "any_h1": [],
+    "yellow_h1": [],
+    "red_h1": [
+      "model/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+      "blend/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+      "recent_any_x_red_share/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+      "climatology/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+      "recent_rate/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+      "persistence_raw/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+      "persistence_calibrated/kyiv_city: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+      "model/rear: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+      "blend/rear: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+      "recent_any_x_red_share/rear: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+      "climatology/rear: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+      "recent_rate/rear: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+      "persistence_raw/rear: within-unit AUC NaN (no unit with >= 10 pos and neg)",
+      "persistence_calibrated/rear: within-unit AUC NaN (no unit with >= 10 pos and neg)"
+    ],
+    "any_h3": [],
+    "yellow_h3": [],
+    "red_h3": []
+  },
+  "preregistration_sha256": "aa6a6e2774cfa77214ce6d07adf84e96fbf5f29be9296705af6a3af25ff3a5d7",
+  "test_rows": {
+    "any_h1": 1901,
+    "yellow_h1": 2207,
+    "red_h1": 3225,
+    "any_h3": 1877,
+    "yellow_h3": 2175,
+    "red_h3": 3192
+  },
+  "test_positives": {
+    "any_h1": 714,
+    "yellow_h1": 752,
+    "red_h1": 150,
+    "any_h3": 1176,
+    "yellow_h3": 1306,
+    "red_h3": 345
+  }
+}

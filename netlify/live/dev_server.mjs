@@ -8,7 +8,8 @@ import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { runUpdate, readPayload, readHistory } from "./lib/runner.mjs";
 import { emptyState, applyHistory } from "./lib/live.mjs";
-import { m12 } from "./lib/m12_bundle.mjs";
+import { m12 as m12Shipped } from "./lib/m12_bundle.mjs";
+import { loadRegistry } from "./lib/models.mjs";
 
 const root = new URL("../../", import.meta.url);
 const model = JSON.parse(readFileSync(new URL("netlify/live/model/model_live.json", root)));
@@ -22,6 +23,16 @@ const store = { async get(k) { return m.has(k) ? structuredClone(m.get(k)) : nul
                 async setJSON(k, v) { m.set(k, structuredClone(v)); }, async delete(k) { m.delete(k); },
                 async list({ prefix = "" } = {}) { return { blobs: [...m.keys()].filter(k => k.startsWith(prefix)).map(key => ({ key })), directories: [] }; } };
 const TOKEN = process.env.ALERTS_IN_UA_TOKEN;
+// DEV ONLY (plans/M13.md §5): DEV_M12_ACTIVE=1 previews the page in the ACTIVE state with an in-memory activation; the
+// shipped activation.json is never changed. Never used by the Netlify functions.
+const m12 = process.env.DEV_M12_ACTIVE === "1" ? (() => {
+  const R = p => JSON.parse(readFileSync(new URL(`netlify/live/model/m12/${p}`, root)));
+  const registry = R("registry.json");
+  const models = Object.fromEntries(registry.models.map(x => [x.key, R(`model_${x.key}.json`)]));
+  console.log("DEV: M12 registry ACTIVE (preview only; activation.json unchanged)");
+  return loadRegistry({ registry, models, seed: R("blend_seed.json"),
+                        activation: { active: true, activated_at: registry.earliest_activation, test_metrics_sha256: "0".repeat(64) } });
+})() : m12Shipped;
 let clock = () => Date.now();
 
 async function tick() {
@@ -68,7 +79,7 @@ const json = (res, v, code = 200) => { res.writeHead(v === null ? 503 : code, { 
 createServer(async (req, res) => {
   if (req.url.startsWith("/api/forecast")) return json(res, await readPayload(store, monthly));
   if (req.url.startsWith("/api/history")) return json(res, await readHistory(store, clock(), regions));
-  if (req.url.startsWith("/api/check")) return json(res, await store.get("check"));
+  if (req.url.startsWith("/api/check")) return json(res, { m8: await store.get("check"), v2: await store.get("check_v2") });
   if (req.url === "/" || req.url.startsWith("/index.html")) {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     return res.end(readFileSync(new URL("site/index.html", root)));

@@ -1,5 +1,5 @@
 """M6-site (plans/M6-site.md §2, §4, §6): the seed carries alert levels and typed coverage; the page shows yellow/red only
-in the oblast tooltip and card (D-036: never the main view); the built site embeds the same template code."""
+in the oblast tooltip, card and the "What kind of alert?" tab (D-044, amends D-036: never the main map colours); the built site embeds the same template code."""
 import json
 import re
 from pathlib import Path
@@ -34,17 +34,18 @@ def _function(name):
     return TEMPLATE[i:j]
 
 
-def test_typed_only_in_tooltip_and_card():
-    assert "typedTipHtml(x.typed, F.typed)" in _function("liveTip")
-    assert "typedCardHtml(x.typed, F.typed" in _function("liveCard")
+def test_typed_and_kind_never_colour_the_main_map():
+    """D-044 (amends D-036, plans/M13.md): yellow/red appear in the tooltip, the card and the "What kind of alert?" tab;
+    the main map's colours, labels and legend never use a typed forecast or the kind rule."""
+    assert "kindWords(kindOf(u))" in _function("tipHtml") and "kindWords(kindOf(u))" in _function("cardHtml")
+    assert "typedValue(" in _function("cardHtml")
     draw = _function("drawLive")
-    main_view = draw.replace("tip: u => liveTip(u, F)", "").replace("liveCard(u, F)", "").replace("liveCard(live.sel, F)", "")
-    assert "typed" not in main_view, "the map fill, labels, legend, top list and table must not show typed forecasts"
-    # the live section's static header and text do not mention typed forecasts (the study section further down has its
-    # own pre-existing exploratory yellow/red analysis, which is not the live view)
-    i = TEMPLATE.index('<section class="live" id="live">')
-    live_section = TEMPLATE[i:TEMPLATE.index("</section>", i)]
-    assert not re.search(r"yellow|drones|missiles", live_section, re.I)
+    main_view = draw.replace("tip: u => tipHtml(u)", "").replace("cardHtml(live.sel)", "")
+    assert not re.search(r"typed|kind", main_view), "the map fill, labels and legend must not show yellow/red"
+    i = TEMPLATE.index('<section class="tab" id="tab-map"')
+    map_tab = TEMPLATE[i:TEMPLATE.index("</section>", i)]
+    assert not re.search(r"yellow|drones|missiles", map_tab, re.I)
+    assert 'id="tab-kind"' in TEMPLATE
 
 
 def test_built_site_has_the_typed_block():

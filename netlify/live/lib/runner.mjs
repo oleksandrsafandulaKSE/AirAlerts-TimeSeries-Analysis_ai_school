@@ -1,8 +1,10 @@
 // One scheduled update (plans/M8.md §2), with injected fetch / store / clock so it can be tested without network.
 import { applyActive, applyHistory, forecastAll, nextRotationUnit } from "./live.mjs";
+import { unitIntervals as unitIntervalsOf } from "./features.mjs";
 import { scoreSnapshots, scoreSeries, checkBlob, historyPayload, dayOfKey, KEEP, LATE_AFTER, LOOKBACK } from "./check.mjs";
 import * as live from "./live.mjs";
 import { registryAt, contextAt, compactSnapshot, buildHistory, blendItems, BLEND_WINDOW } from "./models.mjs";
+import { kindAt } from "./kind.mjs";
 import { validMonthly } from "./typed.mjs";
 
 export const API = "https://api.alerts.in.ua/v1";
@@ -80,7 +82,16 @@ export async function runUpdate({ fetchFn, store, token, now, model, regions, se
       const bad = Object.entries(m12out.items).filter(([, it]) => it.error).map(([k, it]) => `${k}: ${it.error}`);
       if (bad.length) status.m12.error = bad.join("; ").slice(0, 300);             // per-item errors, others still served
     } catch (e) { status.m12.error = String(e.message).slice(0, 200); m12out = null; }
+    // M13: the page reads the model state from here, independent of prediction success (fatal vs item failures)
+    const itemErrors = m12out ? Object.fromEntries(Object.entries(m12out.items).filter(([, it]) => it.error).map(([k, it]) => [k, it.error])) : {};
+    forecast.m12_state = { configured: true, active: m12.active, activated_at: m12.activated_at,
+                           error: m12out ? null : status.m12.error, item_errors: itemErrors,
+                           versions: m12.items.map(m => m.version) };
   }
+  // M13 §3: "if an alert starts, red or yellow?" (descriptive rule, D-044; never blocks the forecast)
+  status.kind_error = null;
+  try { forecast.kind = kindAt(state, now, regions); }
+  catch (e) { forecast.kind = { error: String(e.message).slice(0, 200) }; status.kind_error = forecast.kind.error; }
   status.ok = true;
   await store.setJSON("state", state);
   await store.setJSON("latest", forecast);
@@ -197,10 +208,42 @@ export async function readPayload(store, monthly = { schema: 1, months: [] }) {
   return { status, forecast, typed_monthly, typed_monthly_error };
 }
 
-// GET /api/history (§A3): assembled from the stored state and the last 7 days of snapshots
+// GET /api/history (§A3): assembled from the stored state and the last 7 days of snapshots. M13: plus the ACTIVE
+// snapv2 snapshots (blended p per "any" horizon) and the air-raid-only onsets the new models forecast (D-045).
 export async function readHistory(store, now, regions) {
   const [state, epoch] = await Promise.all([store.get("state", { type: "json" }), store.get("check_epoch", { type: "json" })]);
   if (!state) return null;
   const snapshots = await readSnapshots(store, snapshotKey(now - 7 * 24 * HOUR));
-  return historyPayload(state, snapshots, now, regions, { epoch });
+  const out = historyPayload(state, snapshots, now, regions, { epoch });
+  const v2 = await readSnapshots(store, snapshotKeyV2(now - 7 * 24 * HOUR), "snapv2/");
+  out.v2 = historyV2(v2, regions);
+  const air = unitIntervalsAir(state, now);
+  for (const u of regions.units) {
+    const v = air[u] || { ms: [], me: [], onsets: [] };
+    out.units[u].onsets_air_raid = v.onsets.filter(t => t > now - 14 * 24 * HOUR && t <= now);
+    out.units[u].capped_air_raid = v.ms.map((a, i) => [a, v.me[i]]).filter(([a, b]) => b > now - 14 * 24 * HOUR && a < now)
+                                      .map(([a, b]) => [Math.max(a, now - 14 * 24 * HOUR), Math.min(b, now)]);
+  }
+  return out;
+}
+
+export const V2_HORIZONS = [1, 3, 6, 12, 24];
+// only ACTIVE snapshots (an inactive one holds no blended p and is never shown, plans/M12.md §B)
+export function historyV2(snaps, regions) {
+  const out = [];
+  for (const { key, value: s } of snaps) {
+    if (!s || s.active !== true || !s.items) continue;
+    const units = {};
+    for (const u of regions.units) {
+      const a = s.items.any_h1 && s.items.any_h1.units[u];
+      units[u] = [a ? a[0] : null, ...V2_HORIZONS.map(H => { const it = s.items[`any_h${H}`]; const x = it && it.units[u]; return x && x[0] === "forecast" ? x[5] : null; })];
+    }
+    out.push({ hour: Date.parse(key.slice(7) + ":00:00.000Z"), tau: s.tau, units });
+  }
+  return out;
+}
+
+function unitIntervalsAir(state, now) {
+  return unitIntervalsOf(Object.values(state.records).filter(r => r.alert_type === "air_raid" && r.firstSeen <= now && r.start <= now)
+    .map(r => ({ unit: r.unit, start: r.start, end: r.end !== null && r.endKnown !== null && r.endKnown <= now && r.end <= now ? r.end : null })));
 }

@@ -263,7 +263,12 @@ test("runner, INACTIVE: /latest is byte-identical to a run without M12; snapv2 h
   await runUpdate({ fetchFn: fetchNone, store: a, token: "t", now: T, model: m8model, regions });
   const st = await runUpdate({ fetchFn: fetchNone, store: b, token: "t", now: T, model: m8model, regions, m12: reg });
   assert.equal(st.m12.error, null);
-  assert.equal(a.m.get("latest"), b.m.get("latest"));
+  // M13 adds m12_state (model state, no prediction) to /latest; everything else is byte-identical and no M12 number leaks
+  const la = JSON.parse(a.m.get("latest")), lb = JSON.parse(b.m.get("latest"));
+  assert.deepEqual(Object.keys(lb.m12_state).sort(), ["activated_at", "active", "configured", "error", "item_errors", "versions"]);
+  assert.equal(lb.m12_state.active, false); assert.equal(lb.m12, undefined);
+  delete lb.m12_state;
+  assert.equal(JSON.stringify(lb), JSON.stringify(la));
   const snap = await b.get(snapshotKeyV2(T));
   assert.equal(snap.active, false);
   for (const it of Object.values(snap.items)) for (const x of Object.values(it.units)) { assert.equal(x[4], null); assert.equal(x[5], null); }
@@ -418,4 +423,56 @@ test("negative control inside registryAt, per (type, H): future onsets pulled be
     const d = registryAt(truncated(state, tau), tau, regions, reg, ctxAt(rec.historyStart)).items[m.key];
     assert.ok(regions.units.every(u => JSON.stringify(c.units[u].x) === JSON.stringify(d.units[u].x)), m.key);
   }
+});
+
+// ---------------------------------------------------------------- M13 runner paths
+import { historyV2, readHistory } from "../lib/runner.mjs";
+
+test("M13: /api/history.v2 returns ACTIVE snapshots only (never an inactive one); air-raid onsets and capped state", async () => {
+  const mk = (tau, active) => ({ key: snapshotKeyV2(tau), value: { schema: 2, tau, active,
+    items: { any_h1: { units: { lvivska: ["forecast", 0.2, 0.1, 0, active ? 0.5 : null, active ? 0.15 : null] } } } } });
+  const T = Date.parse("2026-10-17T10:02:00Z");
+  const v = historyV2([mk(T - HOUR, false), mk(T, true)], regions);
+  assert.equal(v.length, 1); assert.equal(v[0].tau, T); assert.equal(v[0].units.lvivska[1], 0.15);
+  // readHistory end to end: an artillery alert is in the all-types onsets but not in the air-raid ones
+  const s = memStore();
+  const st = stateFrom([{ id: "ar", unit: "dnipropetrovska", alert_type: "air_raid", level: "yellow", start: T - 5 * HOUR, end: T - 4 * HOUR },
+                        { id: "art", unit: "dnipropetrovska", alert_type: "artillery_shelling", level: "red", start: T - 2 * HOUR, end: T - HOUR }],
+                       rec.historyStart);
+  await s.setJSON("state", st);
+  await s.setJSON(snapshotKeyV2(T - HOUR), mk(T - HOUR, false).value);
+  const h = await readHistory(s, T, regions);
+  assert.equal(h.v2.length, 0);
+  assert.deepEqual(h.units.dnipropetrovska.onsets, [T - 5 * HOUR, T - 2 * HOUR]);
+  assert.deepEqual(h.units.dnipropetrovska.onsets_air_raid, [T - 5 * HOUR]);
+  assert.deepEqual(h.units.dnipropetrovska.capped_air_raid, [[T - 5 * HOUR, T - 4 * HOUR]]);
+});
+
+test("M13: forecast.m12_state — item errors listed and the rest served; a registry-wide failure is fatal (no forecast.m12)", async () => {
+  const T = Date.parse("2026-10-17T10:02:00Z");
+  const bad = { ...registry, models: registry.models.map(m => (m.key === "red_h1" ? { ...m, calibration: { decision: "bogus" } } : m)) };
+  const act = loadRegistry({ registry: bad, models, seed, activation: ACT });
+  const s = memStore(); await s.setJSON("state", liveState(T));
+  await runUpdate({ fetchFn: fetchNone, store: s, token: "t", now: T, model: m8model, regions, m12: act });
+  let lat = await s.get("latest");
+  assert.match(lat.m12_state.item_errors.red_h1, /unknown calibration/);
+  assert.equal(lat.m12_state.error, null); assert.ok(lat.m12.items.any_h6);
+  // fatal: break the registry as a whole (no seed for blending)
+  const broken = { ...act, items: act.items.map(m => ({ ...m, seed: null })) };
+  const s2 = memStore(); await s2.setJSON("state", liveState(T));
+  await runUpdate({ fetchFn: fetchNone, store: s2, token: "t", now: T, model: m8model, regions, m12: broken });
+  lat = await s2.get("latest");
+  assert.equal(lat.m12, undefined); assert.ok(lat.m12_state.error); assert.equal(lat.m12_state.active, true);
+  assert.ok(lat.units.kyiv_city);                                                   // the M8 output is still written
+});
+
+test("M13: scoreSeries days = per-UTC-day pooled totals with a cumulative skill", () => {
+  const tau = Date.parse("2026-10-10T12:00:00Z"), T = tau + 30 * HOUR, s = liveState(T);
+  const out = registryAt(s, tau, regions, reg, ctxAt(rec.historyStart));
+  for (const it of Object.values(out.items)) for (const x of Object.values(it.units)) { x.w = 0.5; x.p = x.p_model === null ? null : 0.5 * x.p_model + 0.5 * x.p_baseline; }
+  const sn = { key: snapshotKeyV2(tau), value: { ...compactSnap(out, tau), active: true } };
+  const m = reg.items.find(x => x.key === "any_h1");
+  const r = scoreSeries(s, [sn], T, regions, { key: m.key, version: m.version, type: "any", H: m.Hms, active: true, activatedAt: tau });
+  assert.equal(r.days.length, 1); assert.equal(r.days[0].day, "2026-10-10");
+  assert.equal(r.days[0].rows, r.overall.rows); assert.equal(r.days[0].cumulative_bss, r.overall.bss);
 });

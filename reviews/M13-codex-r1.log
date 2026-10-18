@@ -1,0 +1,20 @@
+[codex] I’ll read the priority files first, then check the plan against the project rules, leakage requirements, and relevant 
+[codex] > 'cat plans/M13.md plans/site-redesign-definition.md plans/M12.md reviews/PROPOSED-DECISIONS-site.md 
+[codex] > "wc -l plans/M13.md plans/site-redesign-definition.md plans/M12.md reviews/PROPOSED-DECISIONS-site.m
+[codex] > 'nl -ba DECISIONS.md'
+[codex] > 'nl -ba CLAUDE.md; nl -ba reviews/PROPOSED-DECISIONS-site.md'
+[codex] > 'nl -ba plans/M12.md'
+[codex] > "sed -n '1,79p' DECISIONS.md; sed -n '50,145p' plans/M12.md"
+[codex] > "sed -n '146,220p' plans/M12.md; sed -n '112,145p' plans/site-redesign-definition.md; rg --files new
+[codex] I’m applying the leakage-audit skill to the new red-share path. M13 adds a live calculation, so I’ll check whether i
+[codex] > 'cat newregime/redshare.py; cat netlify/functions/check.mjs; cat netlify/live/lib/runner.mjs'
+[codex] > "cat netlify/live/lib/typed.mjs; sed -n '1,235p' netlify/live/lib/live.mjs"
+[codex] > "rg -n 'def build_replay|replay|parity.*red|redshare_rows|redshare' newregime/horizons.py scripts/ru
+[codex] > "rg --files netlify/live/model/m12 reports/m12 | head -n 55; sed -n '455,525p' newregime/horizons.py
+[codex] > "rg -n 'PARITY_RECORDS|parity_records|firstSeen|endKnown|levels|levelCoverage|def parity' scripts/ex
+[codex] The plan infers activation from a forecast field that the runner can omit on failure, which could make the page show M8 
+[codex] > "sed -n '1,50p' netlify/live/test/m12.test.mjs; rg -n 'function historyPayload|version|return.*units
+[codex] ## BLOCKERS
+Reading prompt from stdin...
+session_id=01a14fc3-2f99-70c3-9eae-5dc11888a174
+output_path=reviews/M13-codex-r1.md

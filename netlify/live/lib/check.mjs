@@ -212,7 +212,7 @@ export function scoreSeries(state, snapsV2, now, regions, { key, version, type, 
   const covKey = type === "any" ? "coverage" : "levelCoverage";           // typed labels need confirmed levels
   const cov = Object.fromEntries(regions.units.map(u => [u, mergeIntervals(coverageAt(state, u, now, covKey))]));
   const rej = Object.fromEntries(regions.units.map(u => [u, rejectionTimes(state, rejectionLog, u)]));
-  const T = { overall: acc(), groups: {}, bins: Array.from({ length: 10 }, () => ({ rows: 0, sum_p: 0, positives: 0 })),
+  const T = { overall: acc(), groups: {}, days: {}, bins: Array.from({ length: 10 }, () => ({ rows: 0, sum_p: 0, positives: 0 })),
               excluded: Object.fromEntries(["late", "before_activation", "other_version", ...REASONS.slice(2)].map(r => [r, 0])) };
   for (const { key: k, value: sn } of snapsV2) {
     const it = sn && sn.items && sn.items[key];
@@ -237,11 +237,15 @@ export function scoreSeries(state, snapsV2, now, regions, { key, version, type, 
       const y = countIn(v.onsets, tau, tau + H) > 0 ? 1 : 0;
       add(T.overall, x[5], x[2], y);
       add(T.groups[regions.groups[u]] ||= acc(), x[5], x[2], y);
+      add(T.days[new Date(tau).toISOString().slice(0, 10)] ||= acc(), x[5], x[2], y);
       const b = T.bins[binOf(x[5])]; b.rows += 1; b.sum_p += x[5]; b.positives += y;
     }
   }
   return { key, version, status: "active", exploratory: true, horizon_hours: H / HOUR, activated_at: activatedAt,
            overall: summarise(T.overall), groups: Object.fromEntries(Object.entries(T.groups).map(([g, a]) => [g, summarise(a)])),
+           days: (() => { const cum = acc(); return Object.keys(T.days).sort().map(d => { const a = T.days[d];
+             cum.rows += a.rows; cum.positives += a.positives; cum.sum_bp += a.sum_bp; cum.sum_br += a.sum_br;
+             return { day: d, ...summarise(a), cumulative_bss: summarise(cum).bss }; }); })(),
            reliability: T.bins.map((b, i) => ({ lo: i / 10, hi: (i + 1) / 10, rows: b.rows, mean_p: b.rows ? b.sum_p / b.rows : null,
                                                 observed: b.rows ? b.positives / b.rows : null })),
            excluded: T.excluded };

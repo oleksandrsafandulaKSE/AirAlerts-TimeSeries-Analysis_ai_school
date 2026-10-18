@@ -99,12 +99,12 @@ test("guards: missing token raises AFTER writing a failed status; missing seed r
                                    model, regions, seed: undefined }), /no valid seed/);
 });
 
-test("snapshots: one key per UTC hour; every snapshot 7 days old or older is deleted, also after a long pause", async () => {
+test("snapshots: one key per UTC hour; every snapshot 35 days old or older is deleted, also after a long pause (M11)", async () => {
   const store = memStore();
-  const old = NOW - 7 * 24 * 3600e3;
+  const old = NOW - 35 * 24 * 3600e3;
   store.m.set(snapshotKey(old), "{}");
   store.m.set(snapshotKey(old - 5 * 3600e3), "{}");                       // missed by an exact-key delete
-  store.m.set(snapshotKey(old + 3600e3), "{}");                           // younger than 7 days: kept
+  store.m.set(snapshotKey(old + 3600e3), "{}");                           // younger than 35 days: kept
   await runUpdate({ fetchFn: mockFetch(() => ok([])).fn, store, token: TOKEN, now: NOW, model, regions, seed });
   assert.equal(store.m.has(snapshotKey(old)), false);
   assert.equal(store.m.has(snapshotKey(old - 5 * 3600e3)), false);

@@ -6,8 +6,9 @@ const MIN = 60e3, HOUR = 60 * MIN, DAY = 24 * HOUR, CAP = DAY;
 export const HISTORY_WINDOW = 30 * DAY;
 export const POLL_GAP_MAX = 5 * MIN;          // polls further apart leave a hole (plans/M8.md §2: a failed ACTIVE poll > 5 min)
 export const STALE_AFTER = 5 * MIN;
-export const COMPACT_AFTER = 8 * DAY;      // coverage blocks confirmed this long before the latest call are merged;
-                                            // > the 7-day snapshot retention, so every kept snapshot replays exactly
+export const COMPACT_AFTER = 8 * DAY;      // coverage blocks confirmed this long before the latest call are merged; this
+                                            // only delays visibility for replays at old tau. The M11 check reads coverage
+                                            // as known NOW (union unchanged by merging), so 35-day retention is unaffected
 // caution: two-week rate from few hours, or above the 99.9th percentile of the training offsets (0.647; max 0.811,
 // 742,114 fit rows, official data) -> the model extrapolates there
 export const CAUTION_MIN_HOURS = 48, CAUTION_RATE = 0.65;

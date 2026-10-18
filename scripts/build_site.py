@@ -3,7 +3,9 @@
   python scripts/build_site.py            # site/index.html + README generated blocks
   python scripts/build_site.py --evidence # also re-run the leakage tests and save reports/leakage_evidence.json
 
-Reads ONLY reports/official, reports/official_h3, reports/new_regime (+ reports/leakage_evidence.json). Never reads data/,
+Reads ONLY reports/official, reports/official_h3, reports/new_regime (+ reports/leakage_evidence.json), and (M11) the
+OPTIONAL reports/m10 tables: a missing M10 file makes its page section say "not run yet" with the printed reason.
+M11 also inlines netlify/live/lib/pattern.mjs (the recent-pattern grid, tested under node). Never reads data/,
 never fits or scores, never recomputes a metric: every value is copied from its source file by an exact key
 (file, predictor, group, metric). A missing report file raises (no placeholder numbers).
 """
@@ -19,6 +21,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 MAP = ROOT / "site_src" / "map_ukraine.json"
+PATTERN_JS = ROOT / "netlify" / "live" / "lib" / "pattern.mjs"     # M11 §B2b: same code as the node tests
 sys.path.insert(0, str(ROOT))
 
 from src import regions  # noqa: E402  (unit/group table only: the single place names are mapped)
@@ -45,6 +48,10 @@ LEAKAGE_TESTS = [
      "tests/test_leakage.py::test_api_loader_to_predictor_truncation_invariant"),
     ("Negative control caught on API data: final alert duration",
      "tests/test_leakage.py::test_api_negative_control_final_duration"),
+    ("M10 hours-under-alert inputs unchanged by truncation (real data, 10 times: active/ending/starting alerts, "
+     "standing alert, gap edges, DST, cut-off)", "tests/test_m10_leakage.py::test_block_d_truncation_invariant"),
+    ("M10 negative control caught at all 10 pinned times: hours under alert without clipping at t",
+     "tests/test_m10_leakage.py::test_block_d_negative_control_pinned"),
     ("Frozen baselines fit on train only; validation labels cannot change them",
      "tests/test_run_all.py::test_frozen_baselines_fit_on_train_only"),
     ("Test labels cannot change any pre-test output (H = 3 label poisoning)",
@@ -139,10 +146,13 @@ def build_payload(reports):
         payload["groups"][g] = [u for u, v in regions.UNITS.items() if v["group"] == g]
     for u, v in regions.UNITS.items():
         payload["units"][u] = {"name": v["official_name"], "group": v["group"]}
+    payload["neighbours"] = {u: sorted(regions.NEIGHBOURS[u]) for u in regions.UNITS}     # M11 §B1 (border table)
     payload["map"] = json.loads(_need(MAP).read_text())          # M8: geoBoundaries SVG paths (scripts/build_map.py)
     if sorted(payload["map"]["units"]) != sorted(regions.UNITS):
         raise SiteError("map units differ from regions.py")
-    _need(reports / "final_test_access.json")
+    access = json.loads(_need(reports / "final_test_access.json").read_text())
+    if "first_access_utc" not in access:
+        raise SiteError("final_test_access.json has no first_access_utc (the replay is labelled with it)")
     for key, run in RUNS.items():
         d = reports / run
         prereg = json.loads(_need(d / "preregistration.json").read_text())
@@ -202,7 +212,59 @@ def build_payload(reports):
         "weekly": records(imp / "weekly_refit.csv"),
     }
     add_public_layer(payload, reports)
+    # full precision (round_trip): the replay's end value must equal it to 1e-12
+    hm = pd.read_csv(reports / "official" / "metrics.csv", float_precision="round_trip").set_index(["baseline", "group"])
+    payload["replay"] = {"scored_once_utc": access["first_access_utc"],
+                         "headline_bss": clean(hm.loc[("model", "overall"), "brier_skill_vs_recent"]),
+                         "headline_rows": clean(hm.loc[("model", "overall"), "rows"])}
+    payload["m10"] = read_m10(reports / "m10")
     return payload
+
+
+# ---------------- M11 §B5-§B7: optional M10 tables ----------------
+M10_FILES = {"stability": "stability_validation.csv", "stability_posthoc": "stability_test_posthoc.csv",
+             "labels_variant": "labels_variant.csv", "labels_predictability": "labels_predictability.csv",
+             "recency_folds": "recency_folds.csv", "exposure_folds": "exposure_folds.csv",
+             "labels_onset_changes": "labels_onset_changes.csv"}
+STABILITY_COLS = ["slice_kind", "slice", "group", "baseline", "rows", "positives", "brier", "brier_skill_vs_recent"]
+SLICE_KINDS = {"week", "day_night"}
+GROUP_KEYS = ("overall", "kyiv_city", "frontline", "rear")
+
+
+def read_m10(d):
+    """Each M10 file is optional: absent -> {"available": False, "reason"} (printed and shown on the page, not hidden).
+    A file that exists but is empty or lacks the columns the page needs raises."""
+    out = {}
+    for key, name in M10_FILES.items():
+        path = Path(d) / name
+        if not path.exists():
+            reason = f"{path.relative_to(ROOT) if path.is_relative_to(ROOT) else path} not found (M10 not run yet)"
+            print(f"[site] M10 {key}: not run yet ({reason})")
+            out[key] = {"available": False, "reason": reason}
+            continue
+        df = pd.read_csv(path, float_precision="round_trip")
+        if df.empty:
+            raise SiteError(f"{path}: empty file")
+        if key.startswith("stability"):
+            miss = [c for c in STABILITY_COLS if c not in df.columns]
+            if miss:
+                raise SiteError(f"{path}: missing columns {miss} (contract: {STABILITY_COLS})")
+            if df.duplicated(["slice_kind", "slice", "group", "baseline"]).any():
+                raise SiteError(f"{path}: duplicate (slice_kind, slice, group, baseline) rows")
+            bad = sorted(set(df["slice_kind"]) - SLICE_KINDS)
+            if bad:
+                raise SiteError(f"{path}: unknown slice_kind {bad}")
+        shown = df
+        if "unit" in df.columns and key != "labels_onset_changes":     # per-unit totals are summed for the README
+            grp = df["unit"].astype(str).isin(GROUP_KEYS) | df["unit"].astype(str).str.startswith("[")
+            if grp.any():
+                shown = df[grp]
+        pos = (f", positives {int(df['positives'].sum()):,}, pooled base rate {df['positives'].sum() / df['rows'].sum():.4f}"
+               if {"positives", "rows"} <= set(df.columns) and df["rows"].sum() > 0 else "")
+        print(f"[site] M10 {key}: {path.name} shape {df.shape}, {len(shown)} rows shown{pos}")
+        out[key] = {"available": True, "file": name, "columns": list(df.columns),
+                    "rows": [{k: clean(v) for k, v in r.items()} for r in shown.to_dict(orient="records")]}
+    return out
 
 
 STATUS_CODE = {"scored": 0, "under_alert": 1, "gap_or_missing": 2, "label_unknown": 3, "feature_missing": 4, "purged": 5}
@@ -274,8 +336,13 @@ def add_public_layer(payload, reports):
             raise SiteError(f"test_predictions.csv: {u} is not a complete hourly series from the test start")
         tl[u] = {"status": [STATUS_CODE[x] for x in g["status"]],
                  "p_model": [clean(x) for x in g["p_model"]], "p_recent": [clean(x) for x in g["p_recent_rate"]],
+                 "y": [None if pd.isna(x) else int(x) for x in g["y"]],                  # M11 §B4 replay (scored rows)
                  "onsets_min": [round((x - start).total_seconds() / 60, 2) for x in on.loc[on["unit"] == u, "onset"]]}
     payload["timeline"] = {"start": start.isoformat(), "hours": hours, "units": tl, "status_names": list(STATUS_CODE)}
+    sc = tp[tp["status"] == "scored"]
+    print(f"[site] timeline: {len(tl)} units x {hours} hours from {tp['t'].min()} to {tp['t'].max()}; status counts "
+          f"{tp['status'].value_counts().to_dict()}; scored base rate {sc['y'].mean():.4f} on {len(sc):,} rows; "
+          f"{len(on):,} test onsets")
     payload["plain"] = plain_sentences(payload)
 
 
@@ -421,7 +488,55 @@ def generated_blocks(payload):
     lk = ["| Check | Result | Evidence (pytest node) |", "|---|---|---|"]
     lk += [f"| {r['check']} | {r['result']} | `{r['test']}` |" for r in payload["leakage"]]
     blocks["leakage"] = "\n".join(lk)
+    blocks.update(m10_blocks(payload))
     return blocks
+
+
+def m10_blocks(payload):
+    """README blocks for M10 (plans/M10.md), every number copied from reports/m10; 'not run yet' when absent."""
+    m = payload.get("m10", {})
+
+    def missing(*keys):
+        gone = [m[k]["reason"] for k in keys if not m.get(k, {}).get("available")]
+        return f"Not run yet: {'; '.join(gone)}." if gone else None
+
+    out = {}
+    out["m10_labels"] = missing("labels_variant", "labels_onset_changes", "labels_predictability") or "\n".join(
+        ["| Period | Group | Onsets L0 → L1 | Share of hours under alert L0 → L1 | Base rate L0 → L1 |", "|---|---|---|---|---|"]
+        + [f"| {r['period']} | {GROUP_NAMES[r['group']]} | {fmt(r['onsets_L0'])} → {fmt(r['onsets_L1'])} | "
+           f"{fmt(r['share_under_alert_L0'])} → {fmt(r['share_under_alert_L1'])} | {fmt(r['base_rate_L0'])} → {fmt(r['base_rate_L1'])} |"
+           for r in m["labels_variant"]["rows"] if r["period"] in ("train", "validation") and str(r["unit"]).startswith("[")]
+        + ["", "| Train onsets, L0 → L1 matching | Kept | Shifted later | Disappeared | New in L1 |", "|---|---|---|---|---|",
+           "| all units | " + " | ".join(f"{sum(int(r[c]) for r in m['labels_onset_changes']['rows'] if r['period'] == 'train'):,}"
+                                        for c in ("kept", "shifted", "disappeared", "new_in_l1")) + " |",
+           "", "| Variant | Split | Group | BSS vs its own recent rate | Within-unit AUC | Rows | Base rate |",
+           "|---|---|---|---|---|---|---|"]
+        + [f"| {r['variant']} | {r['split']} | {GROUP_NAMES[r['group']]} | {fmt(r['brier_skill_vs_recent'])} | "
+           f"{fmt(r['roc_auc_within_unit_mean'])} | {fmt(r['rows'])} | {fmt(r['base_rate'])} |"
+           for r in m["labels_predictability"]["rows"] if r["baseline"] == "model" and r["group"] in ("overall", "frontline")])
+    if missing("recency_folds", "exposure_folds"):
+        out["m10_folds"] = missing("recency_folds", "exposure_folds")
+    else:
+        ft = ["| Candidate (vs reference) | Mean fold Brier, reference | Mean fold Brier, candidate | Relative change | Folds improved | Passes the rule |",
+              "|---|---|---|---|---|---|"]
+        for r in m["recency_folds"]["rows"]:
+            if r["fold_cut"] == "mean":
+                ft.append(f"| recency half-life {int(float(r['half_life_days']))} d (vs equal weights) | {fmt(r['reference_brier'], 5)} | "
+                          f"{fmt(r['brier'], 5)} | {fmt(r['relative_change'])} | {int(r['folds_improved'])} | {fmt(bool(r['accepted']))} |")
+        for r in m["exposure_folds"]["rows"]:
+            if r["fold_cut"] == "mean":
+                ft.append(f"| hours under alert, block D (vs V2 + chosen recency) | {fmt(r['reference_brier'], 5)} | "
+                          f"{fmt(r['candidate_brier'], 5)} | {fmt(r['relative_change'])} | {int(r['folds_improved'])} | "
+                          f"{fmt(bool(r['accepted']))} |")
+        out["m10_folds"] = "\n".join(ft)
+    out["m10_stability"] = missing("stability") or "\n".join(
+        ["| Slice | Frozen headline (V0): BSS vs recent rate | M10 variant: BSS vs recent rate | Rows | Base rate |",
+         "|---|---|---|---|---|"]
+        + [f"| {r['slice']} | {fmt(r['brier_skill_vs_recent'])} | "
+           f"{fmt(next(x['brier_skill_vs_recent'] for x in m['stability']['rows'] if x['slice'] == r['slice'] and x['group'] == 'overall' and x['baseline'] == 'M10'))} | "
+           f"{fmt(r['rows'])} | {fmt(r['base_rate'])} |"
+           for r in m["stability"]["rows"] if r["group"] == "overall" and r["baseline"] == "V0"])
+    return out
 
 
 def render_readme(text, blocks):
@@ -506,7 +621,12 @@ def render_site(payload, template):
     data = json.dumps(payload, separators=(",", ":"), allow_nan=False).replace("</", "<\\/")
     if html.count("/*__DATA__*/null") != 1:
         raise SiteError("template needs exactly one /*__DATA__*/null placeholder")
-    return html.replace("/*__DATA__*/null", data)
+    if html.count("/*__PATTERN_JS__*/") != 1:
+        raise SiteError("template needs exactly one /*__PATTERN_JS__*/ placeholder")
+    pattern = re.sub(r"^export ", "", _need(PATTERN_JS).read_text(), flags=re.M)
+    if re.search(r"^\s*import ", pattern, flags=re.M) or "</script" in pattern:
+        raise SiteError(f"{PATTERN_JS} must be self-contained to be inlined")
+    return html.replace("/*__PATTERN_JS__*/", pattern).replace("/*__DATA__*/null", data)
 
 
 def build_site(payload, template, out):

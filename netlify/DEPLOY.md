@@ -64,10 +64,21 @@ npx netlify-cli deploy --prod
 - If `status.ok` is false (for example, a bad token returns HTTP 401), the page turns grey and says the last update failed.
 - Broken records from the feed are listed in `status.rejected`, and the affected oblast shows a data gap or a caution.
 - Oblasts whose history check has failed at least twice in a row are listed in `status.history_failing` and named on the page.
+- M11: `https://<your-site>/api/history` returns the last 7 days of saved hourly forecasts and the last 14 days of alert intervals (HTTP 503 until the first run has stored a state). `https://<your-site>/api/check` returns the live check, recomputed at most once per UTC hour (HTTP 503 until the first computation). The check needs a few days of uptime before it scores anything: a saved forecast is scored only 4 hours after its hour starts, and only once every oblast's history covers the 24 hours before it.
+- Hourly snapshots made before the M11 deploy are marked `legacy` and never scored (the `check_epoch` blob records the first M11 run).
+
+## Local preview without a token
+
+```bash
+node netlify/live/dev_server.mjs
+```
+
+With no `ALERTS_IN_UA_TOKEN` in the environment, it replays the saved dump through the same runner (about 90 seconds), then serves http://localhost:8888 as of the dump's end, so the page shows "out of date". No network calls are made.
 
 ## Limits
 
 - Each run makes 1 ACTIVE request and 1 history request per minute (the API limit is 2 history requests per minute).
+- Snapshots are kept 35 days (about 840 small blobs). The check is cumulative since launch: one day before a day's snapshots expire, its summed losses are frozen into the `check_archive` blob (about 2 KB per day, never deleted), and a snapshot is deleted only after its day is frozen. Do not delete `check_archive`: the check then reports an error instead of silently restarting. Once per hour the scheduled run reads all of them to recompute the check; `/api/history` reads the last 168 on each request (cached for 5 minutes). If either gets slow, cache the assembled history in a blob (plans/M11.md, risks).
 - The whole state is read and written as one blob every run, with strong consistency.
 - The state grows by about 4 MB per month of alerts. The harness review measured a full run at about 8 s after 12 months and 9 s after 24 months (on a laptop; Netlify allows 30 s).
 - Pruning old records needs the expanding prior kept as running per-oblast counts. That is proposed as follow-up work and is not built.

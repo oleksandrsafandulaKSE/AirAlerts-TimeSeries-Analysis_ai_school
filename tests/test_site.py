@@ -107,7 +107,7 @@ def fixture_reports(tmp):
                   for v in ("V1_weekly_refit", "V4_weekly_refit_offset_plus")
                   for c in ("2026-07-27", "2026-08-03", "2026-08-10", "2026-08-17", "2026-08-24", "2026-08-31")]
                  ).to_csv(imp / "weekly_refit.csv", index=False)
-    (r / "final_test_access.json").write_text("{}")
+    (r / "final_test_access.json").write_text(json.dumps({"first_access_utc": "2026-10-13T00:16:53+00:00"}))
     (r / "leakage_evidence.json").write_text(json.dumps([{"check": "c", "test": "tests/t.py::x", "result": "PASS", "pytest": "1 passed"}]))
     return r
 
@@ -239,8 +239,9 @@ def test_site_embeds_data_and_has_no_placeholder(tmp_path):
     out = B.build_site(B.build_payload(r), ROOT / "site_src" / "template.html", tmp_path / "site" / "index.html")
     html = out.read_text()
     assert "/*__DATA__*/null" not in html and '"horizons"' in html
-    # M8: exactly one network request, same-origin, to the live forecast endpoint; nothing external is loaded
-    assert html.count("fetch(") == 1 and "fetch(LIVE_URL" in html and 'const LIVE_URL = "/api/forecast"' in html
+    # M8 + M11: only same-origin requests to the three live endpoints; nothing external is loaded
+    assert sorted(re.findall(r"fetch\(([^,)]+)", html)) == ["CHECK_URL", "HISTORY_URL", "LIVE_URL"]
+    assert 'const LIVE_URL = "/api/forecast"' in html and 'HISTORY_URL = "/api/history"' in html and 'CHECK_URL = "/api/check"' in html
     assert re.search(r'<(script|link|img)[^>]+(src|href)="https?://', html) is None
 
 
@@ -351,10 +352,11 @@ def test_build_is_atomic(tmp_path):
 
 
 def test_page_makes_no_external_request():
-    # M8: the only request is the same-origin live forecast (relative URL); no external scripts, styles or fetches
+    # M8 + M11: the only requests are the same-origin live endpoints (relative URLs); no external scripts, styles or fetches
     html = (ROOT / "site_src" / "template.html").read_text()
     assert not re.search(r"""(src|href)=["']https?://""", html) and "@import" not in html
-    assert re.findall(r"fetch\(([^,)]+)", html) == ["LIVE_URL"] and 'const LIVE_URL = "/api/forecast"' in html
+    assert sorted(re.findall(r"fetch\(([^,)]+)", html)) == ["CHECK_URL", "HISTORY_URL", "LIVE_URL"]
+    assert 'const LIVE_URL = "/api/forecast"' in html and 'HISTORY_URL = "/api/history"' in html and 'CHECK_URL = "/api/check"' in html
 
 
 # ---------------- M5 reviewer: headline + every remaining block verified from source keys ----------------
@@ -545,3 +547,285 @@ def test_improve_mutations_caught(tmp_path, mut):
         blocks["improve_selection"] = blocks["improve_selection"].replace("V5 blend", "V2 offset")
     with pytest.raises((AssertionError, KeyError)):
         _verify_improve(r, blocks)
+
+
+# ---------------- M11 §C: replay, gap pins, M10 blocks, exploratory labels, token ----------------
+import os  # noqa: E402
+import subprocess  # noqa: E402
+
+REAL = ROOT / "reports"
+HEADLINE_BSS = -0.010064344018558602
+needs_real = pytest.mark.skipif(not (REAL / "official" / "test_predictions.csv").exists(),
+                                reason="final test not scored in this checkout")
+
+
+def embedded_payload(html):
+    m = re.search(r'<script id="payload" type="application/json">(.*?)</script>', html, re.S)
+    return json.loads(m.group(1))
+
+
+def replay_js(html, payload, prefixes, tmp_path):
+    """Run the page's own replayStats (between the <replay-stats> markers of the BUILT page) under node."""
+    m = re.search(r"// <replay-stats>[^\n]*\n(.*?)// </replay-stats>", html, re.S)
+    assert m, "replayStats markers missing from the page"
+    f = tmp_path / "timeline.json"
+    f.write_text(json.dumps(payload["timeline"]))
+    js = m.group(1) + (f"\nconst T = JSON.parse(require('fs').readFileSync({json.dumps(str(f))}, 'utf8'));\n"
+                       f"console.log(JSON.stringify({json.dumps(prefixes)}.map(n => replayStats(T, n))));")
+    r = subprocess.run(["node", "-e", js], capture_output=True, text=True, check=True)
+    return json.loads(r.stdout)
+
+
+def pandas_prefix(tp, start, n):
+    s = tp[(tp["status"] == "scored") & (tp["t"] < start + pd.Timedelta(hours=n))]
+    return len(s), 1 - ((s["p_model"] - s["y"]) ** 2).sum() / ((s["p_recent_rate"] - s["y"]) ** 2).sum()
+
+
+@pytest.fixture(scope="module")
+def real_build():
+    payload = B.build_payload(REAL)
+    html = B.render_site(payload, ROOT / "site_src" / "template.html")
+    tp = pd.read_csv(REAL / "official" / "test_predictions.csv", float_precision="round_trip")
+    tp["t"] = pd.to_datetime(tp["t"], utc=True)
+    return payload, html, tp
+
+
+@needs_real
+def test_timeline_is_1008_hours_by_24_units_with_status_codes(real_build):
+    payload, html, tp = real_build
+    T = embedded_payload(html)["timeline"]
+    assert T["hours"] == 1008 and len(T["units"]) == 24 and set(T["units"]) == set(regions.UNITS)
+    assert T["status_names"] == list(B.STATUS_CODE)
+    for u, U in T["units"].items():
+        assert len(U["status"]) == len(U["p_model"]) == len(U["p_recent"]) == len(U["y"]) == 1008
+        assert set(U["status"]) <= set(B.STATUS_CODE.values())
+        for k, s in enumerate(U["status"]):                     # y and both forecasts exist exactly on scored rows
+            assert (s == 0) == (U["y"][k] is not None) == (U["p_model"][k] is not None)
+
+
+@needs_real
+def test_replay_prefixes_equal_pandas_and_end_equals_headline(real_build, tmp_path):
+    payload, html, tp = real_build
+    page = embedded_payload(html)
+    start = pd.Timestamp(page["timeline"]["start"])
+    prefixes = [24, 336, 700, 1008]
+    got = replay_js(html, page, prefixes, tmp_path)
+    for n, g in zip(prefixes, got):
+        rows, bss = pandas_prefix(tp, start, n)
+        assert g["rows"] == rows
+        assert abs(g["bss"] - bss) <= 1e-12, (n, g["bss"], bss)
+    m = pd.read_csv(REAL / "official" / "metrics.csv", float_precision="round_trip").set_index(["baseline", "group"])
+    assert abs(got[-1]["bss"] - m.loc[("model", "overall"), "brier_skill_vs_recent"]) <= 1e-12
+    assert abs(got[-1]["bss"] - HEADLINE_BSS) <= 1e-12
+    assert got[-1]["rows"] == 13116 and page["replay"]["headline_bss"] == m.loc[("model", "overall"), "brier_skill_vs_recent"]
+    assert page["replay"]["scored_once_utc"].startswith("2026-10-13")
+
+
+@needs_real
+@pytest.mark.parametrize("mut", ["shuffle_hours", "misalign_units"])
+def test_replay_prefix_check_catches_a_broken_payload(real_build, tmp_path, mut):
+    payload, html, tp = real_build
+    page = embedded_payload(html)
+    U = page["timeline"]["units"]
+    if mut == "shuffle_hours":                                   # p_model moved to other scored hours of the same unit
+        for u in U:
+            idx = [k for k, s in enumerate(U[u]["status"]) if s == 0]
+            vals = [U[u]["p_model"][k] for k in idx]
+            for k, v in zip(idx, vals[::-1]):
+                U[u]["p_model"][k] = v
+    else:                                                        # Kyiv City's forecasts paired with Kyivska's outcomes
+        a, b = U["kyiv_city"], U["kyivska"]
+        for k in range(1008):
+            if a["status"][k] == 0 and b["status"][k] == 0:
+                a["p_model"][k], b["p_model"][k] = b["p_model"][k], a["p_model"][k]
+    start = pd.Timestamp(page["timeline"]["start"])
+    prefixes = [24, 336, 700]
+    got = replay_js(html, page, prefixes, tmp_path)
+    assert any(abs(g["bss"] - pandas_prefix(tp, start, n)[1]) > 1e-12 for n, g in zip(prefixes, got))
+
+
+@needs_real
+def test_gap_pins_and_replay_status_counts(real_build):
+    payload, html, tp = real_build
+    assert tp["status"].value_counts().to_dict() == {"scored": 13116, "under_alert": 6397, "gap_or_missing": 3480,
+                                                       "feature_missing": 1199}
+    ts = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
+    gap = tp[(tp["t"] >= ts("2026-08-28 23:00")) & (tp["t"] < ts("2026-09-04 00:00"))]
+    assert len(gap) == 24 * (24 * 5 + 25) and set(gap["status"]) == {"gap_or_missing"}
+    after = tp[(tp["t"] >= ts("2026-09-04 00:00")) & (tp["t"] < ts("2026-09-07 00:00"))]
+    assert len(after) == 24 * 72 and set(after["status"]) <= {"feature_missing", "under_alert"}
+    assert tp.loc[tp["status"] == "scored", "t"].max() <= ts("2026-08-28 22:00")
+    T = embedded_payload(html)["timeline"]
+    inv = {v: k for k, v in B.STATUS_CODE.items()}
+    counts = {}
+    for U in T["units"].values():
+        for s in U["status"]:
+            counts[inv[s]] = counts.get(inv[s], 0) + 1
+    assert counts == tp["status"].value_counts().to_dict()
+    gap_h = int((ts("2026-08-28 23:00") - pd.Timestamp(T["start"])) / pd.Timedelta(hours=1))
+    for U in T["units"].values():
+        assert set(U["status"][gap_h:gap_h + 145]) == {B.STATUS_CODE["gap_or_missing"]}      # 28 Aug 23:00 -> 4 Sep 00:00
+        assert 0 not in U["status"][gap_h:]
+    kc, kv = T["units"]["kyiv_city"], T["units"]["kyivska"]
+    assert kc["status"] != kv["status"] and kc["p_model"] != kv["p_model"] and kc["onsets_min"] != kv["onsets_min"]
+    for u, U in (("kyiv_city", kc), ("kyivska", kv)):
+        g = tp[tp["unit"] == u].sort_values("t")
+        assert U["p_model"] == [None if pd.isna(v) else v for v in g["p_model"]]
+
+
+def m10_fixture(r):
+    d = r / "m10"
+    d.mkdir()
+    rows = []
+    for kind, slices in (("week", ["2026-06-29", "2026-07-06"]), ("day_night", ["day", "night"])):
+        for sl in slices:
+            for g in B.GROUPS:
+                for k, p in enumerate(["V0", "recent_rate", "V2"]):
+                    rows.append({"slice_kind": kind, "slice": sl, "group": g, "baseline": p, "rows": 100 + k,
+                                 "positives": 10 + k, "base_rate": (10 + k) / (100 + k), "brier": 0.08 + 0.001 * k,
+                                 "brier_skill_vs_recent": 0.0 if p == "recent_rate" else 0.0123456789 * (k + 1) * (1 if sl != "night" else -1),
+                                 "low_n": g == "kyiv_city"})
+    pd.DataFrame(rows).to_csv(d / "stability_validation.csv", index=False)
+    pd.DataFrame([{"period": "train", "unit": u, "group": "frontline", "onsets_L0": 10, "onsets_L1": 9, "base_rate_diff": -0.00123}
+                  for u in ("[frontline]", "kharkivska")]).to_csv(d / "labels_variant.csv", index=False)
+    pd.DataFrame([{"half_life_days": h, "fold_cut": "mean", "brier": 0.07 + i / 1000, "accepted": False}
+                  for i, h in enumerate(["inf", "730", "365", "182"])]).to_csv(d / "recency_folds.csv", index=False)
+    return d
+
+
+def test_m10_blocks_present_equal_the_csvs_and_absent_say_not_run_yet(tmp_path, capsys):
+    r = fixture_reports(tmp_path)
+    p0 = B.build_payload(r)
+    for k in B.M10_FILES:
+        assert p0["m10"][k]["available"] is False and "not run yet" in p0["m10"][k]["reason"]
+    assert "not run yet" in capsys.readouterr().out                 # the reason is printed by the build
+    d = m10_fixture(r)
+    p = B.build_payload(r)
+    st = pd.read_csv(d / "stability_validation.csv", float_precision="round_trip")
+    assert p["m10"]["stability"]["available"] and len(p["m10"]["stability"]["rows"]) == len(st)
+    for got, want in zip(p["m10"]["stability"]["rows"], st.to_dict(orient="records")):
+        assert got == want
+    lv = p["m10"]["labels_variant"]
+    assert [x["unit"] for x in lv["rows"]] == ["[frontline]"] and lv["rows"][0]["base_rate_diff"] == -0.00123
+    assert len(p["m10"]["recency_folds"]["rows"]) == 4
+    assert p["m10"]["exposure_folds"]["available"] is False and p["m10"]["stability_posthoc"]["available"] is False
+    html = B.render_site(p, ROOT / "site_src" / "template.html")
+    assert embedded_payload(html)["m10"] == json.loads(json.dumps(p["m10"]))
+    tmpl = (ROOT / "site_src" / "template.html").read_text()
+    assert "Not run yet.</b> ${esc(S.reason)}" in tmpl and "Not run yet.</b> ${esc(T.reason)}" in tmpl
+
+
+@pytest.mark.parametrize("bad", ["missing_column", "empty", "duplicate", "unknown_kind"])
+def test_m10_malformed_stability_raises(tmp_path, bad):
+    r = fixture_reports(tmp_path)
+    d = m10_fixture(r)
+    f = d / "stability_validation.csv"
+    df = pd.read_csv(f)
+    if bad == "missing_column":
+        df = df.drop(columns=["brier_skill_vs_recent"])
+    elif bad == "empty":
+        df = df.iloc[:0]
+    elif bad == "duplicate":
+        df = pd.concat([df, df.iloc[:1]])
+    else:
+        df.loc[0, "slice_kind"] = "month"
+    df.to_csv(f, index=False)
+    with pytest.raises(B.SiteError):
+        B.build_payload(r)
+
+
+def _ids_written_by(tmpl, fn):
+    body = re.search(rf"function {fn}\(.*?\n}}\n", tmpl, re.S).group(0)
+    return set(re.findall(r'\$\("([\w-]+)"\)', body)) | set(re.findall(r'getElementById\("([\w-]+)"\)', body))
+
+
+def _section(tmpl, open_tag):
+    i = tmpl.index(open_tag)
+    tag = "section" if open_tag.startswith("<section") else "div"
+    if tag == "section":
+        return tmpl[i:tmpl.index("</section>", i)]
+    j, depth = i, 0
+    for m in re.finditer(r"<(/?)div\b", tmpl[i:]):
+        depth += -1 if m.group(1) else 1
+        if depth == 0:
+            return tmpl[i:i + m.end()]
+    raise AssertionError(open_tag)
+
+
+OFFICIAL_TABLES = ["tbl", "tbl-units", "tbl-citl", "tbl-tr", "tbl-nrm", "tbl-cov", "tbl-leak", "plain", "map", "tl"]
+EXPLORATORY_TAG = "Exploratory · live API data · not part of the study"
+
+
+def test_every_api_block_carries_the_exploratory_label_and_stays_out_of_official_tables():
+    tmpl = (ROOT / "site_src" / "template.html").read_text()
+    check = _section(tmpl, '<section class="exploratory" id="live-check">')
+    detail = _section(tmpl, '<div class="panel" id="live-detail">')
+    assert EXPLORATORY_TAG in check and EXPLORATORY_TAG in detail
+    check_ids = _ids_written_by(tmpl, "drawCheck")
+    detail_ids = _ids_written_by(tmpl, "drawStrip") | _ids_written_by(tmpl, "drawPattern") | _ids_written_by(tmpl, "drawDetail")
+    assert check_ids and detail_ids
+    for i in check_ids:
+        assert f'id="{i}"' in check, i
+    for i in detail_ids:
+        assert f'id="{i}"' in detail, i
+    for i in OFFICIAL_TABLES:
+        assert f'id="{i}"' in tmpl and f'id="{i}"' not in check and f'id="{i}"' not in detail
+        assert i not in check_ids | detail_ids
+    # the study payload never contains live API data (it is built from reports/ only)
+    for i in ("drawCheck", "drawStrip", "drawPattern"):
+        assert re.search(rf"function {i}\(\) {{\n  const [^\n]*live\.(check|history)", tmpl), i
+
+
+def test_replay_and_m10_sections_are_study_sections_with_their_labels():
+    tmpl = (ROOT / "site_src" / "template.html").read_text()
+    rep = _section(tmpl, '<section id="replay">')
+    assert "official data" in rep and EXPLORATORY_TAG not in rep
+    assert "Frozen predictions, test scored once on ${D.replay.scored_once_utc.slice(0, 10)}" in tmpl
+    assert "Post-hoc · test already seen" in _section(tmpl, '<section id="stability">')
+
+
+def test_pattern_code_is_inlined_verbatim(tmp_path):
+    r = fixture_reports(tmp_path)
+    html = B.render_site(B.build_payload(r), ROOT / "site_src" / "template.html")
+    src = (ROOT / "netlify" / "live" / "lib" / "pattern.mjs").read_text()
+    assert re.sub(r"^export ", "", src, flags=re.M) in html and "/*__PATTERN_JS__*/" not in html
+    assert "function recentPattern(onsets, coverage, now, nDays = 14)" in html
+
+
+def test_neighbours_in_payload_match_both_border_tables(tmp_path):
+    p = B.build_payload(fixture_reports(tmp_path))
+    live = json.loads((ROOT / "netlify" / "live" / "data" / "regions.json").read_text())["neighbours"]
+    assert p["neighbours"] == {u: sorted(regions.NEIGHBOURS[u]) for u in regions.UNITS}
+    assert p["neighbours"] == {u: sorted(v) for u, v in live.items()}
+    assert "kyivska" in p["neighbours"]["kyiv_city"] and p["neighbours"]["kyiv_city"] == ["kyivska"]
+
+
+def _env_token():
+    env = ROOT / ".env"
+    if not env.exists():
+        return None
+    for line in env.read_text().splitlines():
+        k, _, v = line.partition("=")
+        if k.strip() == "ALERTS_IN_UA_TOKEN" and v.strip():
+            return v.strip().strip('"').strip("'")
+    return None
+
+
+def test_built_site_contains_no_token():
+    out = ROOT / "site" / "index.html"
+    if not out.exists():
+        pytest.skip("site not built")
+    html = out.read_text()
+    if re.search(r"Bearer\s+[A-Za-z0-9._\-]{8,}", html) or re.search(r"ALERTS_IN_UA_TOKEN\s*[=:]\s*\S{8,}", html):
+        pytest.fail("a bearer/token-like string is in the built site")
+    for tok in (_env_token(), os.environ.get("ALERTS_IN_UA_TOKEN")):
+        if tok and tok in html:
+            pytest.fail("the API token value is in the built site")   # never print the value
+
+
+@pytest.mark.skipif(not (ROOT / "site" / "index.html").exists(), reason="site not built")
+def test_committed_site_matches_a_fresh_build():
+    if not (REAL / "official" / "test_predictions.csv").exists():
+        pytest.skip("final test not scored in this checkout")
+    html = B.render_site(B.build_payload(REAL), ROOT / "site_src" / "template.html")
+    assert (ROOT / "site" / "index.html").read_text() == html, "site/index.html is stale: run scripts/build_site.py"

@@ -4,7 +4,18 @@
     {
       "name": "live-dev",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["--env-file=.env", "netlify/live/dev_server.mjs"],
+      "runtimeArgs": [
+        "--env-file=.env",
+        "netlify/live/dev_server.mjs"
+      ],
+      "port": 8888
+    },
+    {
+      "name": "live-offline",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "netlify/live/dev_server.mjs"
+      ],
       "port": 8888
     }
   ]

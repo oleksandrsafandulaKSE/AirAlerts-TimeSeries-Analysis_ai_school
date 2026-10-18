@@ -1,4 +1,4 @@
-// Scheduled every minute (plans/M8.md §2). Token only from the Netlify environment; never logged.
+// Scheduled every 5 minutes (plans/M8.md §2; human decision 2026-10-18: every 5 min to stay inside the free plan's credits). Token only from the Netlify environment; never logged.
 import { getStore } from "@netlify/blobs";
 import { runUpdate, STORE_NAME } from "../live/lib/runner.mjs";
 import model from "../live/model/model_live.json" with { type: "json" };
@@ -12,4 +12,4 @@ export default async () => {
   console.log(`update: ok=${status.ok} active=${status.active_alerts} history=${status.history_unit}:${status.history_ok} m12=${status.m12 ? (status.m12.error ? 'error' : (status.m12.active ? 'active' : 'inactive')) : 'off'}`);
 };
 
-export const config = { schedule: "* * * * *" };
+export const config = { schedule: "*/5 * * * *" };

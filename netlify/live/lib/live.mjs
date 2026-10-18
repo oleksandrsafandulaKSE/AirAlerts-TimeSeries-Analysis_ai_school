@@ -5,8 +5,9 @@ import { typedAt, typedFailure } from "./typed.mjs";
 
 const MIN = 60e3, HOUR = 60 * MIN, DAY = 24 * HOUR, CAP = DAY;
 export const HISTORY_WINDOW = 30 * DAY;
-export const POLL_GAP_MAX = 5 * MIN;          // polls further apart leave a hole (plans/M8.md §2: a failed ACTIVE poll > 5 min)
-export const STALE_AFTER = 5 * MIN;
+export const RUN_EVERY = 5 * MIN;            // the scheduled update runs every 5 minutes (human decision 2026-10-18; was 1 min)
+export const POLL_GAP_MAX = 7 * MIN;          // polls further apart leave a hole: one run + scheduler jitter; a missed run (10 min) is a hole
+export const STALE_AFTER = 12 * MIN;          // the page/API call a forecast stale after two missed runs + margin
 export const COMPACT_AFTER = 8 * DAY;      // coverage blocks confirmed this long before the latest call are merged; this
                                             // only delays visibility for replays at old tau. The M11 check reads coverage
                                             // as known NOW (union unchanged by merging), so 35-day retention is unaffected

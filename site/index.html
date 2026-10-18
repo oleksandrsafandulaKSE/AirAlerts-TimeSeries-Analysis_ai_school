@@ -308,7 +308,7 @@ const hover = (node, html) => { const h = () => typeof html === "function" ? htm
   node.addEventListener("mousemove", ev => showTip(ev, h())); node.addEventListener("mouseleave", hideTip); node.setAttribute("tabindex", "0");
   node.addEventListener("focus", () => { const r = node.getBoundingClientRect(); showTip({clientX: r.right, clientY: r.top}, h()); }); node.addEventListener("blur", hideTip); };
 function niceTicks(lo, hi, n) { const span = hi - lo, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0))); const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => span / s <= n) || mag * 10; const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10)); return out; }
-const HR = 3600e3, STALE_AFTER = 5 * 60e3, HZ = [1, 3, 6, 12, 24];
+const HR = 3600e3, STALE_AFTER = 12 * 60e3, HZ = [1, 3, 6, 12, 24];      // STALE_AFTER = live.mjs (updates every 5 min)
 const pct = p => p === null || p === undefined ? "–" : p < 0.01 ? "<1%" : Math.round(100 * p) + "%";
 const kyiv = t => new Date(t).toLocaleTimeString("en-GB", {timeZone: "Europe/Kyiv", hour: "2-digit", minute: "2-digit"});
 const kyivDT = t => new Date(t).toLocaleString("en-GB", {timeZone: "Europe/Kyiv", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"});
@@ -477,7 +477,7 @@ function drawHz() {
 function drawLive() {
   const P = live.payload, F = P && P.forecast, now = Date.now(), isStale = stale(P, now), bar = $("live-status");
   if (!F) { bar.className = "livebar " + (live.error ? "bad" : "wait");
-    bar.innerHTML = live.error ? `<span><span class="pulse"></span>Live forecast unavailable (${esc(live.error)}). Retrying every minute.</span>` : `<span><span class="pulse"></span>No live forecast yet. Retrying every minute.</span>`; }
+    bar.innerHTML = live.error ? `<span><span class="pulse"></span>Live forecast unavailable (${esc(live.error)}). Retrying in a few minutes.</span>` : `<span><span class="pulse"></span>No live forecast yet. Retrying in a few minutes.</span>`; }
   else if (P.status && P.status.ok === false) { bar.className = "livebar bad"; bar.innerHTML = `<span><span class="pulse"></span>The latest update failed; showing the forecast made at ${kyiv(F.tau)} Kyiv time.</span>`; }
   else if (isStale) { bar.className = "livebar bad"; bar.innerHTML = `<span><span class="pulse"></span>Out of date: made at ${kyiv(F.tau)} Kyiv time (${ago(now - F.tau)}). Do not rely on it.</span>`; }
   else { bar.className = "livebar ok"; bar.innerHTML = `<span><span class="pulse"></span>Forecast made at <b>${kyiv(F.tau)}</b> Kyiv time</span><span>updated ${ago(now - F.tau)}</span>`; }
@@ -738,7 +738,7 @@ function route() {
 addEventListener("hashchange", route);
 route(); drawLive(); drawHow(); drawKindCheck(); replayInit(); drawKind();
 pollLive(); pollHistory(); pollCheck();
-setInterval(pollLive, 60e3); setInterval(drawLive, 20e3); setInterval(pollHistory, 10 * 60e3); setInterval(pollCheck, 30 * 60e3);
+setInterval(pollLive, 150e3); setInterval(drawLive, 20e3); setInterval(pollHistory, 10 * 60e3); setInterval(pollCheck, 30 * 60e3);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) pollLive(); });
 })();
 </script>

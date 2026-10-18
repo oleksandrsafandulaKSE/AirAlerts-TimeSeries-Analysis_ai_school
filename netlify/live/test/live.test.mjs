@@ -181,20 +181,21 @@ test("a history call made after tau never fills a hole as seen at tau (coverage 
   assert.ok(s.coverage.kyiv_city.every(([a, b, c]) => b <= c));
 });
 
-test("poll gaps: up to 5 min between polls is covered, a longer gap is a national data gap", () => {
+test("poll gaps (runs every 5 min): up to 7 min between polls is covered, a longer gap (a missed run) is a national data gap", () => {
   const mk = gap => {
     const s = emptyState(T0 - 40 * D);
     confirmAll(s, T0);
     let t = T0;
-    for (; t < T0 + 20 * 60e3; t += 60e3) applyActive(s, [], t, regions);
-    t += gap - 60e3;
-    for (const end = t + 10 * 60e3; t <= end; t += 60e3) applyActive(s, [], t, regions);
-    return forecastAll(s, t - 60e3, model, regions);
+    for (; t < T0 + 30 * 60e3; t += 5 * 60e3) applyActive(s, [], t, regions);
+    t += gap - 5 * 60e3;
+    for (const end = t + 20 * 60e3; t <= end; t += 5 * 60e3) applyActive(s, [], t, regions);
+    return forecastAll(s, t - 5 * 60e3, model, regions);
   };
   const states = f => new Set(Object.values(f.units).map(x => x.state));
-  assert.deepEqual(states(mk(2 * 60e3 + 1000)), new Set(["forecast"]));        // one skipped run + jitter
-  assert.deepEqual(states(mk(5 * 60e3)), new Set(["forecast"]));
-  assert.deepEqual(states(mk(5 * 60e3 + 1000)), new Set(["data_gap"]));
+  assert.deepEqual(states(mk(5 * 60e3 + 20e3)), new Set(["forecast"]));       // one run + scheduler jitter
+  assert.deepEqual(states(mk(7 * 60e3)), new Set(["forecast"]));
+  assert.deepEqual(states(mk(7 * 60e3 + 1000)), new Set(["data_gap"]));
+  assert.deepEqual(states(mk(10 * 60e3)), new Set(["data_gap"]));               // a missed run is a hole
 });
 
 test("per-unit label holes: a global list equals the same holes per unit; a hole in one unit changes only that unit", () => {
@@ -256,7 +257,8 @@ test("stale payloads and rotation", () => {
   const now = T0;
   assert.equal(stale({ status: { ok: true }, forecast: { tau: now - 60e3 } }, now), false);
   assert.equal(stale({ status: { ok: false }, forecast: { tau: now - 60e3 } }, now), true);
-  assert.equal(stale({ status: { ok: true }, forecast: { tau: now - 6 * 60e3 } }, now), true);
+  assert.equal(stale({ status: { ok: true }, forecast: { tau: now - 11 * 60e3 } }, now), false);   // within two runs
+  assert.equal(stale({ status: { ok: true }, forecast: { tau: now - 12 * 60e3 - 1 } }, now), true);
   const s = emptyState(0);
   const seen = new Set(); for (let i = 0; i < 24; i++) seen.add(nextRotationUnit(s, regions));
   assert.equal(seen.size, 24);

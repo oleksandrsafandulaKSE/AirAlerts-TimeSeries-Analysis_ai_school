@@ -161,8 +161,8 @@ test("a hanging API call is aborted by the timeout and reported, not left pendin
   assert.match(st.error, /^active: /);
 });
 
-test("the scheduled function reads the state with strong consistency and is scheduled every minute", () => {
+test("the scheduled function reads the state with strong consistency and is scheduled every 5 minutes", () => {
   const src = readFileSync(new URL("../../functions/update-forecast.mjs", import.meta.url), "utf8");
   assert.match(src, /consistency: "strong"/);
-  assert.match(src, /schedule: "\* \* \* \* \*"/);
+  assert.match(src, /schedule: "\*\/5 \* \* \* \*"/);
 });

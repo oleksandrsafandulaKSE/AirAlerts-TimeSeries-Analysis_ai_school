@@ -58,7 +58,7 @@ npx netlify-cli deploy --prod
 
 ## 5. Check
 
-- Netlify UI → Functions → `update-forecast` should show "Scheduled: every minute".
+- Netlify UI → Functions → `update-forecast` should show "Scheduled: every 5 minutes" (`*/5 * * * *`).
 - `https://<your-site>/api/forecast` returns `{status, forecast}` within about 1–2 minutes.
 - During the first ~24 minutes many oblasts show "data gap". Each run reconciles one oblast's history (24 oblasts in rotation), and the gap since the seed closes once every oblast has been reconciled.
 - If `status.ok` is false (for example, a bad token returns HTTP 401), the page turns grey and says the last update failed.
@@ -77,7 +77,7 @@ With no `ALERTS_IN_UA_TOKEN` in the environment, it replays the saved dump throu
 
 ## Limits
 
-- Each run makes 1 ACTIVE request and 1 history request per minute (the API limit is 2 history requests per minute).
+- Each run (every 5 minutes, chosen to stay inside the free plan's monthly credits) makes 1 ACTIVE request and 1 history request (the API limit is 2 history requests per minute). History rotates through the 24 oblasts, so after an outage every oblast is refreshed within 2 hours. A gap of more than 7 minutes between ACTIVE polls (a missed run) is treated as a data hole; a forecast older than 12 minutes is shown as out of date.
 - Snapshots are kept 35 days (about 840 small blobs). The check is cumulative since launch: one day before a day's snapshots expire, its summed losses are frozen into the `check_archive` blob (about 2 KB per day, never deleted), and a snapshot is deleted only after its day is frozen. Do not delete `check_archive`: the check then reports an error instead of silently restarting. Once per hour the scheduled run reads all of them to recompute the check; `/api/history` reads the last 168 on each request (cached for 5 minutes). If either gets slow, cache the assembled history in a blob (plans/M11.md, risks).
 - The whole state is read and written as one blob every run, with strong consistency.
 - The state grows by about 4 MB per month of alerts. The harness review measured a full run at about 8 s after 12 months and 9 s after 24 months (on a laptop; Netlify allows 30 s).
@@ -85,7 +85,7 @@ With no `ALERTS_IN_UA_TOKEN` in the environment, it replays the saved dump throu
 
 ## M12: the new-data models (inactive until the switch)
 
-The M12 registry (`netlify/live/model/m12/`: "any" 1/3/6/12/24 h, yellow/red 1/3 h, trained on alerts.in.ua data only, air-raid alerts only) is bundled and runs every minute, but ships **inactive** (`activation.json`: `{"active": false}`):
+The M12 registry (`netlify/live/model/m12/`: "any" 1/3/6/12/24 h, yellow/red 1/3 h, trained on alerts.in.ua data only, air-raid alerts only) is bundled and runs with every update, but ships **inactive** (`activation.json`: `{"active": false}`):
 
 - each UTC hour it archives the models' predictions (`snapv2/<hour>`, first write wins, kept 35 days): `p_model` and `p_baseline` only;
 - no blend weight, no blended chance, no score is computed (`check_v2` = `{"status": "inactive"}`), and `/api/forecast` is byte-identical to the M8 output;

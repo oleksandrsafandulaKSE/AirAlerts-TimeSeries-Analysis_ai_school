@@ -1,0 +1,25 @@
+[codex] I’ll read the priority documents and leakage-audit rules, then check relevant code for claims the plans rely on.
+[codex] > 'cat plans/site-redesign-definition.md reviews/PROPOSED-DECISIONS-site.md plans/M6-definition.md rev
+[codex] I’m applying the leakage-audit skill’s causality and cutoff checks. The site definition records human approval for s
+[codex] > 'nl -ba CLAUDE.md'
+[codex] > 'nl -ba DECISIONS.md'
+[codex] > "rg --files -g 'AGENTS.md' -g '*site*' -g '*M6*' -g '*leak*' -g '*newregime*' -g '*reserve*' -g '*re
+[codex] > 'rg --files src/newregime src/live tests scripts | sort'
+[codex] > 'nl -ba src/newregime/pipeline.py'
+[codex] > 'cat tests/test_newregime_leakage.py'
+[codex] > 'nl -ba plans/site-redesign-definition.md; nl -ba src/regions.py'
+[codex] > 'cat newregime/blend.py newregime/data.py'
+[codex] > "rg -n 'reserve|overlap|test_start|test_end|version|first_seen|reconstruct|red_share' newregime test
+[codex] > 'nl -ba newregime/pipeline.py'
+[codex] > 'cat newregime/blend.py newregime/data.py'
+[codex] The definitions leave unresolved how to align the live map’s alert types with M6c-1, define “red given an onset,” 
+[codex] > "rg -n 'test_|HORIZONS|H1|hours=3|purge|gap|DST|share|overlap' tests/test_newregime.py tests/test_li
+[codex] > "sed -n '350,490p' newregime/pipeline.py; cat reviews/PROPOSED-DECISIONS-M6c-1.md"
+[codex] > "rg -n 'as_reconstructed_at|def .*version|latest' collect/api_collector.py; cat newregime/frames.py"
+[codex] > "rg -n --glob '*.py' --glob '*.mjs' 'HORIZON|horizon|alert_types|model_version|forecast_time|red_sha
+[codex] > "sed -n '1,130p' netlify/live/lib/check.mjs; sed -n '1,155p' netlify/functions/update-forecast.mjs; 
+[codex] > "sed -n '1,140p' tests/test_live_parity.py; sed -n '1,90p' netlify/live/lib/typed.mjs; rg -n 'HOUR|h
+[codex] ## BLOCKERS
+Reading prompt from stdin...
+session_id=01a14f54-e2ed-7a53-a923-9259ce9af8aa
+output_path=reviews/site-redesign-definition-codex-r1.md

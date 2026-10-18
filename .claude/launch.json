@@ -17,6 +17,16 @@
         "netlify/live/dev_server.mjs"
       ],
       "port": 8888
+    },
+    {
+      "name": "live-offline-active",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "DEV_M12_ACTIVE=1",
+        "node",
+        "netlify/live/dev_server.mjs"
+      ],
+      "port": 8888
     }
   ]
 }

@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Air-Raid Onset Forecasts</title>
+<title>Air-Alert Forecasting</title>
 <style>
-/* Layout: a signal-board header (the answer), then horizon tabs driving four instrument panels; method notes last. */
+/* M13 (plans/M13.md): one interactive map on the main tab; everything else in its own tab. Same design tokens as before. */
 :root {
   color-scheme: light;
   --bg: #f3f4f6; --panel: #ffffff; --ink: #14171c; --ink-2: #4b5260; --ink-3: #7b8290; --rule: #dde1e7;
@@ -29,374 +29,195 @@
   --alert: #ff5a6a; --alert-soft: #3a1a20; --ok: #4fc58a; --ok-soft: #17301f;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #9085e9;
   --grid: #262a32; --zero: #5d6470; --band-alert: #3d2026; --band-gap: #2b2f37; --band-feat: #23272e; --tile-empty: #262a31; color-scheme: dark; }
+
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; }
 body { background: var(--bg); color: var(--ink); font: 400 var(--step-0)/1.55 var(--f-body); }
-.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 64px; display: grid; gap: 28px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 12px 56px; display: grid; gap: 20px; }
 h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
-h1 { font-size: clamp(var(--step-3), 6vw, var(--step-4)); font-weight: 800; font-stretch: 78%; line-height: 0.98; letter-spacing: -0.01em; }
+h1 { font-size: clamp(2rem, 6vw, var(--step-4)); font-weight: 800; font-stretch: 78%; line-height: 0.98; letter-spacing: -0.01em; }
 h2 { font-size: var(--step-2); font-weight: 750; font-stretch: 85%; }
 h3 { font-size: var(--step-1); font-weight: 700; font-stretch: 90%; }
-p { margin: 0; max-width: 68ch; }
+p { margin: 0; max-width: 70ch; }
+a { color: var(--s1); }
 .eyebrow { font: 600 var(--step--1)/1.2 var(--f-data); text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-3); }
 .muted { color: var(--ink-2); }
+.small { font-size: var(--step--1); }
 .num { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
-a { color: var(--s1); }
-/* header */
-header.board { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; align-items: start; }
-.board .lede { margin-top: 14px; color: var(--ink-2); font-size: var(--step-1); line-height: 1.4; }
-.answer { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; }
-.answer .big { font: 700 var(--step-4)/1 var(--f-data); letter-spacing: -0.03em; }
-.answer .verdict { display: inline-flex; gap: 8px; align-items: center; font-weight: 600; padding: 4px 10px; border-radius: 999px; width: fit-content; }
-.verdict.no { background: var(--alert-soft); color: var(--alert); }
-.verdict.yes { background: var(--ok-soft); color: var(--ok); }
-.verdict.na { background: var(--rule); color: var(--ink-2); }
-.verdict svg { width: 14px; height: 14px; }
-.answer dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: var(--step--1); color: var(--ink-2); }
-.answer dd { margin: 0; text-align: right; }
-/* controls */
-.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 10px; border-bottom: 1px solid var(--rule); }
+.tag { font: 600 11px var(--f-data); text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 7px; border-radius: 4px; background: color-mix(in srgb, var(--s6) 14%, transparent); color: var(--s6); width: fit-content; display: inline-block; }
+.tag.test { background: color-mix(in srgb, var(--s4) 16%, transparent); color: var(--s4); }
+/* tabs */
+nav.tabs { display: flex; gap: 2px; overflow-x: auto; border-bottom: 1px solid var(--rule); position: sticky; top: 0; z-index: 6; background: var(--bg); padding-top: env(safe-area-inset-top, 0px); scrollbar-width: none; }
+nav.tabs a { font: 600 var(--step--1) var(--f-body); color: var(--ink-2); text-decoration: none; padding: 12px 12px 10px; border-bottom: 3px solid transparent; white-space: nowrap; }
+nav.tabs a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--ink); }
+nav.tabs a:focus-visible { outline: 2px solid var(--s1); outline-offset: -2px; }
+section.tab { display: grid; gap: 18px; }
+/* map tab header */
+.hero { display: grid; gap: 10px; }
+.ask { font: 600 clamp(1.1rem, 3.2vw, var(--step-1))/1.3 var(--f-body); display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
 .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--panel); }
-.seg button { font: 600 var(--step--1) var(--f-body); color: var(--ink-2); background: none; border: 0; padding: 7px 12px; cursor: pointer; }
+.seg button { font: 700 var(--step-0) var(--f-data); color: var(--ink-2); background: none; border: 0; padding: 7px 12px; cursor: pointer; min-width: 52px; }
 .seg button + button { border-left: 1px solid var(--rule); }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
-.seg button:focus-visible, .chip:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
-.note-h3 { font-size: var(--step--1); color: var(--ink-3); }
-/* panels */
-.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
-.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; display: grid; gap: 12px; min-width: 0; align-content: start; }
-.panel header { display: grid; gap: 4px; }
-.chart { width: 100%; height: auto; display: block; overflow: visible; }
-.chart text { fill: var(--ink-2); font: 11px var(--f-data); }
-.chart .lbl { fill: var(--ink); font: 600 12px var(--f-body); }
+.seg button:disabled { color: var(--ink-3); cursor: not-allowed; background: repeating-linear-gradient(135deg, transparent 0 4px, var(--grid) 4px 6px); }
+.seg button:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+.lede { color: var(--ink-2); }
+.disclaimer { font-size: var(--step--1); color: var(--ink-3); }
+.livebar { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; font-size: var(--step--1); color: var(--ink-2); }
+.livebar b { color: var(--ink); font-family: var(--f-data); }
+.livebar.bad { color: var(--alert); font-weight: 600; }
+.pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); display: inline-block; margin-right: 6px; vertical-align: 1px; }
+.livebar.bad .pulse, .livebar.wait .pulse { background: var(--ink-3); }
+@media (prefers-reduced-motion: no-preference) { .livebar.ok .pulse { animation: pulse 2s ease-out infinite; } }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent); } 100% { box-shadow: 0 0 0 9px transparent; } }
+.notice { border-left: 3px solid var(--s4); background: color-mix(in srgb, var(--s4) 10%, transparent); padding: 8px 12px; border-radius: 0 8px 8px 0; font-size: var(--step--1); max-width: 72ch; }
+.notice.bad { border-left-color: var(--alert); background: var(--alert-soft); }
+/* map + card */
+.map-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 820px) { .map-grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; display: grid; gap: 10px; min-width: 0; align-content: start; }
+.geo { width: 100%; height: auto; display: block; }
+.geo path.u { stroke: var(--panel); stroke-width: 1; stroke-linejoin: round; cursor: pointer; }
+.geo path.u:hover, .geo path.u:focus-visible, .geo path.u.sel { stroke: var(--ink); stroke-width: 2.2; outline: none; }
+.geo path.grey { fill: var(--tile-empty); stroke: var(--panel); stroke-width: 1; }
+.geo path.ring { fill: none; stroke: var(--alert); stroke-width: 3.2; stroke-linejoin: round; pointer-events: none; }
+.geo text { pointer-events: none; text-anchor: middle; paint-order: stroke; stroke: var(--panel); stroke-width: 6px; stroke-linejoin: round; }
+.geo text.pv { fill: var(--ink); font: 700 27px var(--f-data); }
+.geo text.nm { fill: var(--ink-2); font: 600 18px var(--f-body); }
+.geo.is-stale path.u, .geo.is-stale text { filter: grayscale(1); opacity: .5; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--step--1); color: var(--ink-2); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { font: 600 var(--step--1) var(--f-body); border: 1px solid var(--rule); background: var(--panel); color: var(--ink-2); padding: 4px 10px; border-radius: 999px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
-.chip[aria-pressed="true"] { color: var(--ink); border-color: var(--ink-3); }
-.chip[aria-pressed="false"] .sw { opacity: 0.25; }
-.tablewrap { overflow-x: auto; }
-.tablewrap.tall { max-height: 380px; overflow: auto; }
+.attr { color: var(--ink-3); font-size: 11px; }
+.card .big { font: 700 var(--step-4)/1 var(--f-data); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.card .big.state { font-size: var(--step-3); }
+.ladder { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; align-items: end; }
+.ladder .rung { display: grid; gap: 4px; justify-items: center; font-size: 11px; }
+.ladder .bar { width: 100%; height: 64px; background: var(--tile-empty); border-radius: 4px; position: relative; overflow: hidden; }
+.ladder .bar i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--s6); }
+.ladder .bar.off { background: repeating-linear-gradient(135deg, transparent 0 4px, var(--grid) 4px 6px); }
+.ladder .rung.sel b { color: var(--ink); }
+.ladder b { font: 700 13px var(--f-data); color: var(--ink-2); }
+.card dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 0; font-size: var(--step--1); color: var(--ink-2); }
+.card dd { margin: 0; text-align: right; font-family: var(--f-data); color: var(--ink); }
+.card .typed { display: grid; gap: 6px; border-top: 1px solid var(--rule); padding-top: 8px; }
+.card .typed .tag { display: inline-block; margin-left: 6px; vertical-align: 1px; }
+.kindline { border-top: 1px solid var(--rule); padding-top: 8px; font-size: var(--step--1); }
+.stripwrap { overflow-x: auto; }
+#strip { min-width: 640px; }
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart text { fill: var(--ink-2); font: 11px var(--f-data); }
+#tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--panel); font: 12px/1.45 var(--f-body); padding: 7px 9px; border-radius: 6px; max-width: 280px; z-index: 20; }
+/* replay / check / how / kind */
+.btn { font: 600 var(--step--1) var(--f-body); border: 1px solid var(--rule); background: var(--panel); color: var(--ink); padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+.btn:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.ctl { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.ctl select { font: 600 var(--step--1) var(--f-body); padding: 6px 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); color: var(--ink); }
+input[type=range] { width: 100%; accent-color: var(--s1); }
+.counter { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 16px; margin: 0; }
+.counter div { display: grid; gap: 2px; }
+.counter dt { font: 600 11px var(--f-data); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
+.counter dd { margin: 0; font: 700 var(--step-1) var(--f-data); }
+.headline { font: 600 var(--step-1)/1.35 var(--f-body); max-width: 60ch; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 820px) { .grid2, .counter { grid-template-columns: minmax(0, 1fr); } }
 table { border-collapse: collapse; width: 100%; font-size: var(--step--1); }
 th, td { padding: 7px 10px; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
 th:first-child, td:first-child { text-align: left; }
 th { font: 600 11px/1.2 var(--f-data); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
 td { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
 td.name { font-family: var(--f-body); font-weight: 600; }
-td.grp { text-align: left; font-family: var(--f-body); }
-tr.is-model td { background: color-mix(in srgb, var(--s1) 8%, transparent); }
-.flag { font: 600 10px var(--f-data); color: var(--ink-3); border: 1px solid var(--rule); border-radius: 4px; padding: 1px 4px; margin-left: 6px; }
-.na { color: var(--ink-3); }
-/* tooltip */
-#tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--panel); font: 12px/1.4 var(--f-body); padding: 7px 9px; border-radius: 6px; max-width: 260px; z-index: 20; }
-/* section heads */
-section { display: grid; gap: 16px; }
-section > header { display: grid; gap: 6px; border-top: 2px solid var(--ink); padding-top: 14px; }
-section > header.livehead { border-top: 0; padding-top: 0; }
-header.board { border-top: 2px solid var(--ink); padding-top: 18px; }
-.studyh { font-size: clamp(var(--step-2), 4vw, var(--step-3)); font-weight: 800; font-stretch: 78%; line-height: 1.02; }
-.exploratory section > header, section.exploratory > header { border-top-color: var(--s6); }
-.pending { border-left: 3px solid var(--s4); background: color-mix(in srgb, var(--s4) 10%, transparent); padding: 10px 12px; border-radius: 0 8px 8px 0; font-size: var(--step--1); max-width: 72ch; }
-.tag { font: 600 11px var(--f-data); text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 7px; border-radius: 4px; background: color-mix(in srgb, var(--s6) 14%, transparent); color: var(--s6); width: fit-content; }
-.plain ul { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; font-size: var(--step-0); }
-.plain li:first-child { font-weight: 600; font-size: var(--step-1); line-height: 1.35; list-style: none; margin-left: -1.1em; }
-.small { font-size: var(--step--1); }
-.mapwrap { max-width: 760px; }
-/* geographic map (M8): shared by the live map and the study map */
-.geo { width: 100%; height: auto; display: block; }
-.geo path.u { stroke: var(--panel); stroke-width: 1; stroke-linejoin: round; cursor: pointer; transition: filter .2s; }
-.geo path.u:hover, .geo path.u:focus-visible, .geo path.u.sel { stroke: var(--ink); stroke-width: 2.2; outline: none; }
-.geo path.grey { fill: var(--tile-empty); stroke: var(--panel); stroke-width: 1; }
-.geo path.ring { fill: none; stroke: var(--alert); stroke-width: 3.2; stroke-linejoin: round; pointer-events: none; }
-.geo text { pointer-events: none; text-anchor: middle; paint-order: stroke; stroke: var(--panel); stroke-width: 6px; stroke-linejoin: round; }
-.geo text.pv { fill: var(--ink); font: 700 27px var(--f-data); font-variant-numeric: tabular-nums; }
-.geo text.nm { fill: var(--ink-2); font: 600 18px var(--f-body); }
-.geo.is-stale path.u, .geo.is-stale text { filter: grayscale(1); opacity: .5; }
-/* live section */
-.live-grid { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 20px; align-items: start; }
-.livebar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; font-size: var(--step--1); color: var(--ink-2); }
-.livebar b { color: var(--ink); font-family: var(--f-data); font-variant-numeric: tabular-nums; }
-.livebar.bad { color: var(--alert); font-weight: 600; }
-.pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); display: inline-block; margin-right: 6px; vertical-align: 1px; }
-.livebar.bad .pulse, .livebar.wait .pulse { background: var(--ink-3); }
-@media (prefers-reduced-motion: no-preference) { .livebar.ok .pulse { animation: pulse 2s ease-out infinite; } }
-@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent); } 100% { box-shadow: 0 0 0 9px transparent; } }
-.card { display: grid; gap: 8px; }
-.card .big { font: 700 var(--step-3)/1 var(--f-data); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.card dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 0; font-size: var(--step--1); color: var(--ink-2); }
-.card .typed { display: grid; gap: 6px; border-top: 1px solid var(--rule); padding-top: 8px; }
-.card .typed .tag { display: inline-block; margin-left: 6px; vertical-align: 1px; }
-.card dd { margin: 0; text-align: right; font-family: var(--f-data); font-variant-numeric: tabular-nums; color: var(--ink); }
-.toplist { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: var(--step--1); }
-.toplist button { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 10px; background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 6px 2px; font: inherit; color: var(--ink); cursor: pointer; text-align: left; }
-.toplist button:hover, .toplist button:focus-visible { background: var(--bg); outline: none; }
-.toplist .num { font-weight: 700; }
-.attr { color: var(--ink-3); font-size: 11px; }
-@media (max-width: 820px) { .live-grid { grid-template-columns: minmax(0, 1fr); } }
-.tlctl { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
-.tlctl select { font: 600 var(--step--1) var(--f-body); padding: 6px 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); color: var(--ink); }
-.tlwrap { overflow-x: auto; }
-#tl { min-width: 760px; }
-#strip { min-width: 680px; }
-#live-detail > div { min-width: 0; }
-details.tech { border-top: 2px solid var(--ink); padding-top: 14px; }
-details.tech > summary { cursor: pointer; display: flex; gap: 10px; align-items: baseline; font-size: var(--step-1); padding-block: 6px; }
-details.tech[open] > summary { margin-bottom: 18px; }
-details.tech .controls { position: static; }
-.limits { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; max-width: 75ch; color: var(--ink-2); }
-.method { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; }
-.method div { display: grid; gap: 4px; }
-.method b { font-family: var(--f-display); font-stretch: 90%; }
-.pass { color: var(--ok); font-weight: 600; font-family: var(--f-data); }
-.fail { color: var(--alert); font-weight: 600; font-family: var(--f-data); }
+.tablewrap { overflow-x: auto; }
+ul.plain { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; max-width: 75ch; color: var(--ink-2); }
 footer { color: var(--ink-3); font-size: var(--step--1); display: grid; gap: 6px; }
-@media (max-width: 820px) { header.board, .grid2, .method { grid-template-columns: minmax(0, 1fr); } .controls { position: static; } }
-.answer dd { white-space: nowrap; }
-@media (prefers-reduced-motion: no-preference) { .bar { transition: width .3s ease, x .3s ease; } }
-/* M11: oblast detail (7-day strip, recent pattern), live check, replay, stability */
-.detail-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; justify-content: space-between; }
-.simple { font: 600 var(--step-0) var(--f-data); color: var(--s2); }
-.pgrid { display: grid; grid-template-columns: 82px repeat(8, minmax(0, 1fr)); gap: 3px; font-size: 11px; max-width: 640px; }
-.pgrid .ph { font: 600 10px/1.2 var(--f-data); color: var(--ink-3); text-align: center; padding-bottom: 2px; }
-.pgrid .pd { font: 600 11px/1.2 var(--f-data); color: var(--ink-2); align-self: center; white-space: nowrap; }
-.pgrid .pc { height: 24px; border-radius: 4px; display: grid; place-items: center; font: 600 11px var(--f-data); color: var(--ink); background: var(--tile-empty); }
-.pgrid .pc.nd { background: repeating-linear-gradient(45deg, var(--band-gap) 0 3px, transparent 3px 6px); color: var(--ink-3); }
-.pgrid .pc.fu { background: none; border: 1px dashed var(--rule); }
-.pgrid .pc:focus-visible { outline: 2px solid var(--s1); outline-offset: 1px; }
-.btn { font: 600 var(--step--1) var(--f-body); border: 1px solid var(--rule); background: var(--panel); color: var(--ink); padding: 6px 12px; border-radius: 8px; cursor: pointer; }
-.btn:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
-.btn[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
-input[type=range] { width: 100%; accent-color: var(--s1); }
-.counter { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 16px; margin: 0; }
-.counter div { display: grid; gap: 2px; }
-.counter dt { font: 600 11px var(--f-data); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
-.counter dd { margin: 0; font: 700 var(--step-1) var(--f-data); font-variant-numeric: tabular-nums; }
-.nlist { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: var(--step--1); }
-@media (max-width: 820px) { .counter { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 480px) { .pgrid { grid-template-columns: 50px repeat(8, minmax(0, 1fr)); } .pgrid .pd { font-size: 10px; } .pgrid .pc { height: 22px; font-size: 10px; } }
 </style>
 </head>
 <body>
+<nav class="tabs" aria-label="Pages">
+  <a href="#map" data-tab="map">Map</a><a href="#replay" data-tab="replay">Replay</a><a href="#check" data-tab="check">Forecast check</a><a href="#how" data-tab="how">How good is it?</a><a href="#kind" data-tab="kind">What kind of alert?</a><a href="#about" data-tab="about">About</a>
+</nav>
 <div class="wrap">
-  <section class="live" id="live">
-    <header class="livehead"><div class="eyebrow">Ukraine · live · experimental · updated every minute</div><h1>Chance of a new alert in the next 60 minutes</h1>
-      <p class="muted">Any alert type from alerts.in.ua: air raid, artillery shelling, street fighting (and chemical or nuclear threat, if announced).</p></header>
-    <div class="pending" role="note"><b>Not an official warning.</b> Always follow official air-raid alerts. This is an experimental model, trained on data from before the September 2026 alert reform and not validated on post-reform data.</div>
-    <div class="live-grid">
+
+  <section class="tab" id="tab-map" aria-labelledby="h-map">
+    <div class="hero">
+      <h1 id="h-map">Air-Alert Forecasting</h1>
+      <div class="ask"><span>Will there be an alert in</span><span class="seg" id="seg-hz" role="group" aria-label="Forecast horizon"></span><span>?</span></div>
+      <p class="lede">Each oblast is coloured by the chance that a new air-raid alert starts within the chosen time, from alerts up to now.</p>
+      <div class="livebar wait" id="live-status" role="status" aria-live="polite"><span><span class="pulse"></span>Loading the live forecast…</span></div>
+      <p class="notice" id="hz-note" hidden></p>
+      <p class="notice bad" id="model-error" hidden></p>
+    </div>
+    <div class="map-grid">
       <div class="panel">
-        <div class="livebar wait" id="live-status" role="status" aria-live="polite"><span><span class="pulse"></span>Loading the live forecast…</span></div>
-        <div class="mapwrap"><svg class="geo" id="live-map" role="img" aria-label="Map of Ukraine: chance of a new alert in the next 60 minutes, per oblast"></svg></div>
+        <svg class="geo" id="live-map" role="img" aria-label="Map of Ukraine: chance of a new air-raid alert per oblast"></svg>
         <div class="legend" id="live-legend"></div>
         <p class="attr map-attr"></p>
       </div>
-      <div class="panel" id="live-side">
-        <div class="card" id="live-card"><div class="eyebrow">Oblast</div><p class="muted">Hover over or tap an oblast.</p></div>
-        <div><div class="eyebrow">Highest chances now</div><ol class="toplist" id="live-top"></ol></div>
-      </div>
+      <aside class="panel card" id="card" aria-live="polite"><p class="muted">Hover over an oblast, or tap / click it (Tab + Enter) for its card.</p></aside>
     </div>
-    <div class="panel" id="live-detail">
-      <div class="detail-head"><div><span class="tag">Exploratory · live API data · not part of the study</span><h3 id="ld-title">Oblast detail</h3></div>
-        <p class="muted small" id="ld-hint">Pick an oblast on the map (click, tap, or Tab + Enter).</p></div>
-      <div><div class="eyebrow">Last 7 days: forecast vs what happened</div>
-        <div class="tlwrap"><svg class="chart" id="strip" role="img" aria-label="Last 7 days: hourly forecast, alerts and onsets"></svg></div>
-        <div class="legend" id="strip-legend"></div>
-        <p class="muted small" id="strip-note"></p></div>
-      <div><div class="eyebrow">Recent pattern: what happened, not a forecast</div>
-        <p class="muted small">New alerts per 3-hour block of Kyiv time, last 14 days. Hatched = no confirmed data for the whole block (not zero).</p>
-        <div class="pgrid" id="pattern" role="grid" aria-label="New alerts per Kyiv 3-hour block, last 14 days"></div>
-        <p class="muted small" id="pattern-note"></p></div>
+    <div class="panel" id="strip-panel" hidden>
+      <h3 id="strip-title">The last 7 days</h3>
+      <div class="stripwrap"><svg class="chart" id="strip" role="img" aria-label="Last 7 days: actual alerts and the saved 1-hour forecast"></svg></div>
+      <div class="legend" id="strip-legend"></div>
+      <p class="small muted" id="strip-note"></p>
     </div>
-    <details><summary>All 24 oblasts now, and how the live forecast works</summary>
-      <div class="tablewrap"><table id="live-tbl"></table></div>
-      <ul class="limits">
-        <li>Every minute a scheduled job asks alerts.in.ua which alerts are active, and fetches one oblast's alert history for the past month (24 oblasts in rotation, so each is re-checked about every 24 minutes). The forecast covers the 60 minutes after that moment and uses only what was known then.</li>
-        <li>Model: the study's "offset" model (two-week rate plus learned corrections), trained only on official data up to July 2026. No retraining, no tuning on the new data.</li>
-        <li>"Alert running": an alert started less than 24 hours ago is still active, so there is no forecast of a <i>new</i> alert. The end of an alert is confirmed by the history check, so this can lag the real end by up to about 24 minutes. A red outline means alerts.in.ua lists an alert as active right now (alerts older than 24 hours count as background and the oblast is still forecast).</li>
-        <li>An alert that starts and ends between two checks is only seen after that oblast's next history check (at most about 24 minutes).</li>
-        <li>"Data gap": if the feed was missed for more than 5 minutes, inputs that look back over the gap are unknown and no forecast is shown until every oblast's history check has covered the gap (about 24 minutes), or, if the history cannot be fetched, until the gap is more than 8 days old. A record the feed sent in a broken form also marks its oblast as a data gap for 24 hours. Inputs are never filled in by guessing.</li>
-        <li>"Caution": the two-week rate rests on fewer than 48 forecastable hours, or it is higher than almost anything the model saw in training (above 65%; in training 99.9% of values were lower). Counting all alert types, frontline oblasts are under alert nearly all the time, so their two-week rate can reach 100% from a few hours.</li>
-        <li>If the last update failed or is more than 5 minutes old, the map turns grey.</li>
-        <li>Luhanska oblast (a permanent alert since 2022) and Crimea are not forecast.</li>
-      </ul>
-    </details>
+    <p class="disclaimer">A student project, not an official warning system. Always follow official air-raid alerts.</p>
   </section>
 
-  <section class="exploratory" id="live-check">
-    <header><span class="tag">Exploratory · live API data · not part of the study</span><h2>Live check: saved forecasts against what happened</h2>
-      <p class="muted">Every hour the live map's first forecast is saved. Once the hour is over (plus 3 hours for the history checks to settle), it is compared with the alerts that actually started. Same measure as the study: Brier skill against the two-week rule. A forecast is counted only if the oblast was not under alert at that moment, both as the forecast saw it and as the data looks now, and the alert history covers the 24 hours before to the hour after.</p></header>
-    <div class="pending" role="status" id="check-status">Loading the live check…</div>
+  <section class="tab" id="tab-replay" aria-labelledby="h-replay" hidden>
+    <header><span class="tag">Exploratory · one week</span><h2 id="h-replay">Replay: the week the new-data model was tested</h2></header>
+    <p class="muted" id="replay-label"></p>
+    <div class="ctl"><span class="eyebrow">Horizon</span><span class="seg" id="seg-rp"></span>
+      <button type="button" class="btn" id="rp-play" aria-pressed="false">Play</button><button type="button" class="btn" id="rp-step">+1 h</button>
+      <label class="small muted" for="rp-speed">Speed</label><select id="rp-speed"><option value="2">slow</option><option value="6" selected>normal</option><option value="16">fast</option></select></div>
+    <input type="range" id="rp-slider" min="0" value="0" aria-label="Hour of the replayed week">
+    <p class="num" id="rp-time"></p>
+    <div class="map-grid">
+      <div class="panel"><svg class="geo" id="replay-map" role="img" aria-label="Replay map"></svg><div class="legend" id="replay-legend"></div></div>
+      <div class="panel"><dl class="counter" id="rp-counter"></dl><p class="small muted" id="rp-note"></p></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-check" aria-labelledby="h-check" hidden>
+    <header><span class="tag">Exploratory · live data</span><h2 id="h-check">Forecast check: our saved forecasts against what happened</h2></header>
+    <div class="ctl"><span class="eyebrow">Series</span><span class="seg" id="seg-check"></span></div>
+    <p class="headline" id="check-headline">Loading…</p>
+    <p class="small muted" id="check-note"></p>
     <div class="grid2">
-      <div class="panel"><header><h3>Skill against the two-week rule, per day</h3><p class="muted small">Bars: each UTC day on its own. Line: all days since the check started, pooled. Saved forecasts are kept 35 days; older days stay in the score as frozen daily totals.</p></header>
-        <svg class="chart" id="ch-check-days" role="img" aria-label="Live check: Brier skill per day and cumulative"></svg>
-        <div class="legend"><span><span class="sw" style="background:var(--s6)"></span>Day</span><span><svg width="16" height="10" aria-hidden="true"><path d="M0 5h16" stroke="var(--ink)" stroke-width="2"/></svg>Cumulative (pooled)</span></div></div>
-      <div class="panel"><header><h3>When it said 20%, did it happen 20% of the time?</h3><p class="muted small">Saved forecasts in 10 bins of predicted chance; point size shows the number of hours.</p></header>
-        <svg class="chart" id="ch-check-rel" role="img" aria-label="Live check: reliability"></svg></div>
-    </div>
-    <div class="panel"><header><h3>Per oblast</h3><p class="muted small" id="check-units-note"></p></header>
-      <div class="tablewrap"><table id="tbl-check"></table></div>
-      <details><summary>Saved forecasts not counted, and why</summary><div class="tablewrap"><table id="tbl-check-excl"></table></div></details></div>
-  </section>
-
-  <header class="board">
-    <div>
-      <div class="eyebrow">The study · official data, 2022 – September 2026 · 23 oblasts + Kyiv City</div>
-      <h2 class="studyh">Will a new air-raid alert start in the next hour?</h2>
-      <p class="lede">A model gives every oblast, every hour, a chance that a new alert starts in the next hour. It only uses what was known at that moment. We tested it once, on six weeks of real alerts it had never seen, against a simple rule: "use how often alerts started in the last two weeks".</p>
-    </div>
-    <div class="answer plain" aria-live="polite"><div class="eyebrow">Short answer</div><ul id="plain"></ul>
-      <p class="muted small">"Accuracy" here is the Brier score, which rewards honest chances. A forecast counts only for hours with no recent alert running; an alert counts as running only in its first 24 hours.</p></div>
-  </header>
-
-  <section>
-    <header><div class="eyebrow">Study map</div><h2>Where new alerts start, and where the model helps</h2>
-      <p class="muted">The six-week test of the study, July–September 2026 (official data, air-raid alerts only). Oblasts with few scored hours are striped and should be read with caution.</p></header>
-    <div class="panel">
-      <div class="seg" id="seg-map"><button type="button" id="btn-map-freq" data-m="freq" aria-pressed="true">How often alerts start</button><button type="button" id="btn-map-skill" data-m="skill" aria-pressed="false">Model vs two-week rule</button></div>
-      <div class="mapwrap"><svg class="geo" id="map" role="img" aria-label="Map of Ukrainian oblasts: study results"></svg></div>
-      <div class="legend" id="map-legend"></div>
-      <p class="attr map-attr"></p>
-      <details><summary>All 24 oblasts as a table</summary><div class="tablewrap"><table id="tbl-units"></table></div></details>
+      <div class="panel"><h3>When we said X%, how often did an alert start?</h3><svg class="chart" id="ch-check-rel" role="img" aria-label="Calibration of saved forecasts"></svg></div>
+      <div class="panel"><h3>Day by day: better or worse than the two-week rule</h3><svg class="chart" id="ch-check-days" role="img" aria-label="Skill per day"></svg><p class="small muted">Bars: skill per day (above 0 = more accurate than the two-week rule). Line: since the start.</p></div>
     </div>
   </section>
 
-  <section>
-    <header><div class="eyebrow">Timeline</div><h2>One week, hour by hour</h2>
-      <p class="muted">The model's chance of a new alert in the next hour, next to the two-week rule. Dots mark the moments a new alert actually started. Shaded hours were not forecast: an alert was already running, data was missing, or an input was unknown.</p></header>
-    <div class="panel">
-      <div class="tlctl"><label for="tl-unit" class="eyebrow">Oblast</label> <select id="tl-unit"></select>
-        <span class="eyebrow">Week starting</span> <div class="seg" id="tl-week"></div></div>
-      <div class="tlwrap"><svg class="chart" id="tl" role="img" aria-label="Hourly forecast timeline"></svg></div>
-      <div class="legend"><span><span class="sw" style="background:var(--s1)"></span>Model</span><span><span class="sw" style="background:var(--s2)"></span>Two-week rule</span><span><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4" fill="var(--alert)"/></svg>A new alert started</span><span><span class="sw" style="background:var(--band-alert)"></span>Alert running</span><span><span class="sw" style="background:var(--band-gap)"></span>Missing data</span><span><span class="sw" style="background:var(--band-feat)"></span>Input unknown</span></div>
-      <p class="muted small" id="tl-note"></p>
-    </div>
-  </section>
-
-  <section id="replay">
-    <header><div class="eyebrow">Replay · final test · official data</div><h2>The six test weeks, hour by hour</h2>
-      <p class="muted" id="replay-label"></p></header>
-    <div class="panel">
-      <div class="tlctl"><button type="button" class="btn" id="rp-play" aria-pressed="false">Play</button><button type="button" class="btn" id="rp-step">+1 hour</button>
-        <label class="eyebrow" for="rp-speed">Speed</label> <select id="rp-speed"><option value="2">2 h / s</option><option value="6" selected>6 h / s</option><option value="24">1 day / s</option></select>
-        <span class="livebar" id="rp-time" aria-live="polite"></span></div>
-      <input type="range" id="rp-slider" min="0" value="0" step="1" aria-label="Replay hour">
-      <div class="mapwrap"><svg class="geo" id="replay-map" role="img" aria-label="Replay map of the final test"></svg></div>
-      <div class="legend" id="replay-legend"></div>
-      <dl class="counter" id="rp-counter"></dl>
-      <p class="muted small" id="rp-note"></p>
-    </div>
-  </section>
-
-  <section id="stability">
-    <header><div class="eyebrow">Stability · validation weeks · official data</div><h2>Is the result stable from week to week, day and night?</h2>
-      <p class="muted">Brier skill against the two-week rule on each slice of the four validation weeks (before the test). Above zero: more accurate than the rule.</p></header>
-    <div class="pending" id="stab-missing" hidden></div>
-    <div id="stab-body">
-      <div class="seg" id="seg-stab"></div>
-      <div class="grid2">
-        <div class="panel"><header><h3>By week</h3><p class="muted small">Monday-to-Sunday weeks in UTC; partial weeks keep their real hours.</p></header>
-          <svg class="chart" id="ch-stab-week" role="img" aria-label="Brier skill per validation week"></svg></div>
-        <div class="panel"><header><h3>Day and night</h3><p class="muted small">Kyiv time: day 06:00–21:59, night 22:00–05:59.</p></header>
-          <svg class="chart" id="ch-stab-dn" role="img" aria-label="Brier skill by day and night"></svg></div>
-      </div>
-      <div class="legend" id="stab-legend"></div>
-      <div class="panel" id="stab-posthoc-panel" hidden><header><span class="tag">Post-hoc · test already seen</span><h3>The same slices on the final test</h3></header>
-        <svg class="chart" id="ch-stab-post" role="img" aria-label="Post-hoc test slices"></svg></div>
-    </div>
-  </section>
-
-  <section id="m10">
-    <header><div class="eyebrow">Related-work checks · official data</div><h2>Three ideas from other projects, measured here</h2>
-      <p class="muted">Which alert levels count, newer data weighted more, and how long an oblast has been under alert recently. Descriptive and validation results; the headline test number above is unchanged.</p></header>
-    <div class="grid2" id="m10-body"></div>
-  </section>
-
-  <details class="tech" id="tech"><summary><span class="eyebrow">For the technically curious</span> <b>Full metrics, calibration, method and checks</b></summary>
-
-  <div class="controls" role="toolbar" aria-label="View">
-    <div><div class="eyebrow">Horizon</div>
-      <div class="seg" id="seg-h"><button type="button" id="btn-h1" data-h="h1" aria-pressed="true">1 hour (headline)</button><button type="button" id="btn-h3" data-h="h3" aria-pressed="false">3 hours</button></div></div>
-    <div><div class="eyebrow">Units</div>
-      <div class="seg" id="seg-g"></div></div>
-    <div><div class="eyebrow">Period</div>
-      <div class="seg" id="seg-p"><button type="button" id="btn-final" data-p="final" aria-pressed="true">Final test</button><button type="button" id="btn-val" data-p="validation" aria-pressed="false">Validation</button></div></div>
-    <p class="note-h3" id="note-h"></p>
-  </div>
-
-  <section>
-    <header><div class="eyebrow" id="sec1-eyebrow"></div><h2>Is the model better than simply using the last two weeks?</h2>
-      <p class="muted">Brier skill against the rolling 14-day recent rate. Above zero means more accurate probabilities than that baseline; below zero means less accurate. This is the primary metric, fixed before the test was scored.</p></header>
+  <section class="tab" id="tab-how" aria-labelledby="h-how" hidden>
+    <header><h2 id="h-how">How good is it?</h2></header>
+    <div class="panel" id="how-new"></div>
     <div class="grid2">
-      <div class="panel"><header><h3>Brier skill vs recent rate</h3><p class="muted">Each bar is a predictor; the line at zero is the recent rate itself.</p></header>
-        <svg class="chart" id="ch-skill" role="img" aria-label="Brier skill by predictor"></svg></div>
-      <div class="panel"><header><h3>Ranking: across units vs within a unit</h3><p class="muted">Pooled ROC-AUC rewards knowing that frontline oblasts alert more often. Within-unit AUC asks whether the hours are ranked well inside each oblast, which is the harder question.</p></header>
-        <svg class="chart" id="ch-auc" role="img" aria-label="Pooled and within-unit ROC-AUC"></svg>
-        <div class="legend"><span><span class="sw" style="background:var(--ink-3)"></span>Pooled</span><span><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="var(--ink)" stroke-width="2"/></svg>Within unit (mean)</span></div></div>
+      <div class="panel" id="how-official"></div>
+      <div class="panel"><h3>The original study: when it said X%, how often did an alert start?</h3><svg class="chart" id="ch-official-rel" role="img" aria-label="Calibration on the official test"></svg></div>
     </div>
-    <div class="panel"><header><h3>All metrics</h3><p class="muted" id="tbl-note"></p></header>
-      <div class="tablewrap"><table id="tbl"></table></div></div>
+    <div class="panel"><h3>What these results cannot tell you</h3><ul class="plain" id="limits"></ul>
+      <p class="small">The full study (every table, the leakage checks and the method) is in the repository README: github.com/oleksandrsafandulaKSE/AirAlerts-TimeSeries-Analysis_ai_school.</p></div>
   </section>
 
-  <section>
-    <header><div class="eyebrow">Calibration</div><h2>When it says 20%, does it happen about 20% of the time?</h2>
-      <p class="muted">Final-test hours grouped by predicted probability. Points on the diagonal are well calibrated; point size shows how many hours fall in the bin.</p></header>
-    <div class="grid2">
-      <div class="panel"><header><h3>Reliability</h3></header>
-        <div class="chips" id="rel-chips"></div>
-        <svg class="chart" id="ch-rel" role="img" aria-label="Reliability diagram"></svg></div>
-      <div class="panel"><header><h3>Mean predicted vs observed</h3><p class="muted">Calibration-in-the-large per group on the final test.</p></header>
-        <div class="tablewrap"><table id="tbl-citl"></table></div>
-        <p class="muted" id="cal-note"></p></div>
+  <section class="tab" id="tab-kind" aria-labelledby="h-kind" hidden>
+    <header><span class="tag test">In testing</span><h2 id="h-kind">What kind of alert? If an alert starts, how likely is it red?</h2></header>
+    <p class="muted">Red = missiles, yellow = drones. Each oblast is coloured by the share of red among its alerts that started in the last 7 days. <b>In training:</b> a red/yellow model is retrained monthly; until it beats this simple rule, this page uses the rule. <a href="#map">Back to the map</a>.</p>
+    <div class="map-grid">
+      <div class="panel"><svg class="geo" id="kind-map" role="img" aria-label="Map: share of red alerts in the last 7 days"></svg><div class="legend" id="kind-legend"></div></div>
+      <aside class="panel card" id="kind-card"><p class="muted">Tap / click an oblast.</p></aside>
     </div>
+    <div class="panel"><h3>How often was the rule right?</h3><svg class="chart" id="ch-kind-rel" role="img" aria-label="Calibration of the red-share rule"></svg><p class="small muted" id="kind-check-note"></p></div>
   </section>
 
-  <section class="exploratory">
-    <header><span class="tag">Exploratory</span><h2>September 2026: yellow (drones) and red (missiles)</h2>
-      <p class="muted">The official feed stopped on 7 September. One month of alerts.in.ua data, a different source, kept separate from everything above. The model was frozen: no retraining and no tuning on this data. The target is any alert, yellow or red.</p>
-      <div class="pending"><b>Open decision.</b> The API labels each alert's type and the official feed does not. Evidence suggests the official feed counts artillery-shelling alerts in some frontline hromadas, but counting them changes the target, so both versions are shown until the project owner decides.</div>
-      <div><div class="eyebrow">Alerts counted</div><div class="seg" id="seg-v"><button type="button" id="btn-v-air" data-v="new_regime" aria-pressed="true">Air-raid only</button><button type="button" id="btn-v-all" data-v="new_regime_all_types" aria-pressed="false">All alert types</button></div></div></header>
-    <div class="grid2">
-      <div class="panel"><header><h3>Before and after the reform</h3><p class="muted">Onsets per 30 days and share of time under alert, official 27 Jul – 29 Aug vs API 13 Sep – 12 Oct.</p></header>
-        <svg class="chart" id="ch-ba" role="img" aria-label="Before and after the reform"></svg>
-        <div class="legend"><span><span class="sw" style="background:var(--ink-3)"></span>Official, before</span><span><span class="sw" style="background:var(--s6)"></span>API, after</span></div></div>
-      <div class="panel"><header><h3>Does the frozen model transfer?</h3><p class="muted">Within-unit ranking and mean predicted vs observed on the new data, model against the recent rate (all predictors are in the saved reports).</p></header>
-        <div class="tablewrap"><table id="tbl-tr"></table></div>
-        <p class="muted" id="tr-note"></p></div>
-    </div>
-    <div class="panel"><header><h3>Accuracy on the new data</h3><p class="muted">Brier skill against the recent rate, computed the same way as the headline (D-015 b).</p></header>
-      <div class="tablewrap"><table id="tbl-nrm"></table></div>
-      <p id="tr-outcome"></p></div>
+  <section class="tab" id="tab-about" aria-labelledby="h-about" hidden>
+    <header><h2 id="h-about">About</h2></header>
+    <div class="panel" id="about-body"></div>
   </section>
 
-  <section>
-    <header><div class="eyebrow">Method and checks</div><h2>How the numbers were protected from hindsight</h2></header>
-    <div class="method" id="method"></div>
-    <div class="panel"><header><h3>Leakage evidence</h3><p class="muted">Each row is a test that ran on this build. They cover the listed cases; they do not prove the absence of leakage for every possible hour.</p></header>
-      <div class="tablewrap"><table id="tbl-leak"></table></div></div>
-    <div class="panel"><header><h3>Coverage of the six-week test</h3><p class="muted">Hours that were not scored, and why. The recording gap at the end of August removes several days.</p></header>
-      <div class="tablewrap"><table id="tbl-cov"></table></div></div>
-  </section>
-
-  </details>
-
-  <section>
-    <header><div class="eyebrow">Limitations</div><h2>What these results cannot tell you</h2></header>
-    <ul class="limits">
-      <li>The test period is short (six weeks) and loses several days to the recording gap; frontline groups are low-n.</li>
-      <li>The rolling recent-rate baseline adapts during the test while the frozen model does not.</li>
-      <li>No text, Telegram or weather inputs; one pooled model per horizon; no hyperparameter search.</li>
-      <li>Recording outages that hit only some oblasts cannot be detected from the data.</li>
-      <li>At three hours, neighbouring hours share label windows, so they are not independent observations.</li>
-      <li>The new-regime check uses a different source, one month of data, and an open question about which alert types count.</li>
-      <li>The pre-registration and the access marker are local files; they become tamper-evident only once committed.</li>
-    </ul>
-  </section>
-
-  <footer>
-    <p>Data: Vadimkin/ukrainian-air-raid-sirens-dataset (official feed, deduplicated) and alerts.in.ua (exploratory). Every number on this page is read from files written by the project's pipeline; nothing is typed in by hand.</p>
-    <p id="foot-meta"></p>
-  </footer>
+  <footer><p>Data: the official alert feed (Vadimkin/ukrainian-air-raid-sirens-dataset) for the study, alerts.in.ua for the live forecast. Boundaries: geoBoundaries. Every result on this site comes from the project's saved reports or from the live forecast.</p></footer>
 </div>
 <div id="tip" hidden></div>
 <script id="payload" type="application/json">/*__DATA__*/null</script>
@@ -404,299 +225,65 @@ input[type=range] { width: 100%; accent-color: var(--s1); }
 /*__PATTERN_JS__*/
 </script>
 <script>
+/*__KIND_JS__*/
+</script>
+<script>
 (() => {
 const D = JSON.parse(document.getElementById("payload").textContent);
-const NAMES = {model: "Model (LightGBM)", model_raw: "Model, before Platt", recent_rate: "Recent rate (14 d)", climatology: "Climatology", persistence_calibrated: "Calibrated persistence", persistence_raw: "Raw persistence"};
-const COLOR = {model: "var(--s1)", model_raw: "var(--s6)", recent_rate: "var(--s2)", climatology: "var(--s3)", persistence_calibrated: "var(--s4)", persistence_raw: "var(--s5)"};
-const GROUPS = {overall: "All units", kyiv_city: "Kyiv City", frontline: "Frontline (8)", rear: "Rear (15)"};
-const ORDER = ["model", "model_raw", "recent_rate", "persistence_calibrated", "climatology", "persistence_raw"];
-const st = {h: "h1", g: "overall", p: "final", v: "new_regime", rel: new Set(["model", "recent_rate", "persistence_calibrated"])};
-const NR = () => D.new_regimes[st.v];
-try { const s = JSON.parse(localStorage.getItem("onset-view") || "{}");  // accept only values that exist
-  if (s && D.horizons[s.h]) st.h = s.h; if (s && ["overall", "kyiv_city", "frontline", "rear"].includes(s.g)) st.g = s.g;
-  if (s && ["final", "validation"].includes(s.p)) st.p = s.p; } catch (e) {}
-const save = () => { try { localStorage.setItem("onset-view", JSON.stringify({h: st.h, g: st.g, p: st.p})); } catch (e) {} };
-const f = (v, d = 3) => v === null || v === undefined ? '<span class="na">n/a</span>' : (typeof v === "number" ? v.toFixed(d) : v);
-const fi = v => v === null || v === undefined ? "n/a" : Number(v).toLocaleString("en-US");
+const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const fi = v => v === null || v === undefined ? "n/a" : Number(v).toLocaleString("en-US");
+const signed = (v, d = 3) => v === null || v === undefined ? "n/a" : (v > 0 ? "+" : "") + v.toFixed(d);
 const svgNS = "http://www.w3.org/2000/svg";
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(svgNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
-const tip = document.getElementById("tip");
-const showTip = (ev, html) => { tip.innerHTML = html; tip.hidden = false; const x = Math.min(ev.clientX + 14, innerWidth - 270); tip.style.left = x + "px"; tip.style.top = (ev.clientY + 14) + "px"; };
+const tip = $("tip");
+const showTip = (ev, html) => { tip.innerHTML = html; tip.hidden = false; const x = Math.min(ev.clientX + 14, innerWidth - 290); tip.style.left = Math.max(4, x) + "px"; tip.style.top = (ev.clientY + 14) + "px"; };
 const hideTip = () => { tip.hidden = true; };
-const hover = (node, html) => { const h = () => typeof html === "function" ? html() : html;   // a function = read at hover time (replay)
-  node.addEventListener("mousemove", ev => showTip(ev, h())); node.addEventListener("mouseleave", hideTip); node.setAttribute("tabindex", "0"); node.addEventListener("focus", () => { const r = node.getBoundingClientRect(); showTip({clientX: r.right, clientY: r.top}, h()); }); node.addEventListener("blur", hideTip); };
-const H = () => D.horizons[st.h];
-const M = () => H()[st.p];
-const preds = () => ORDER.filter(p => M()[p]);
+const hover = (node, html) => { const h = () => typeof html === "function" ? html() : html;
+  node.addEventListener("mousemove", ev => showTip(ev, h())); node.addEventListener("mouseleave", hideTip); node.setAttribute("tabindex", "0");
+  node.addEventListener("focus", () => { const r = node.getBoundingClientRect(); showTip({clientX: r.right, clientY: r.top}, h()); }); node.addEventListener("blur", hideTip); };
+function niceTicks(lo, hi, n) { const span = hi - lo, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0))); const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => span / s <= n) || mag * 10; const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10)); return out; }
+const HR = 3600e3, STALE_AFTER = 5 * 60e3, HZ = [1, 3, 6, 12, 24];
+const pct = p => p === null || p === undefined ? "–" : p < 0.01 ? "<1%" : Math.round(100 * p) + "%";
+const kyiv = t => new Date(t).toLocaleTimeString("en-GB", {timeZone: "Europe/Kyiv", hour: "2-digit", minute: "2-digit"});
+const kyivDT = t => new Date(t).toLocaleString("en-GB", {timeZone: "Europe/Kyiv", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"});
+const ago = ms => ms < 90e3 ? "just now" : ms < 90 * 60e3 ? `${Math.round(ms / 60e3)} min ago` : `${(ms / 3600e3).toFixed(1)} h ago`;
+const nm = u => D.units[u] ? D.units[u].name : u;
+const PBINS = [0.05, 0.15, 0.30, 0.50, Infinity], PLABEL = ["under 5%", "5–15%", "15–30%", "30–50%", "50% or more"], PMIX = [24, 40, 56, 74, 94];
+const pFill = p => `color-mix(in oklab, var(--s6) ${PMIX[PBINS.findIndex(hi => p < hi)]}%, var(--panel))`;
 
-function plain() {
-  document.getElementById("plain").innerHTML = D.plain.map(x => `<li>${esc(x.text)}</li>`).join("");
-}
-
+// ---------- map renderer (shared by the three maps) ----------
 const GEO = D.map;
 const GREY_NAMES = {luhanska: ["Luhanska oblast", "permanent alert since 2022"], crimea: ["Crimea", "not in the data"]};
-// One renderer for both maps. o: fill(u), value(u), tip(u), overlay(u) -> pattern id or null, ring(u), onPick(u), sel
+const SHORT = {volynska:"Volyn",rivnenska:"Rivne",zhytomyrska:"Zhytomyr",kyivska:"Kyiv obl.",chernihivska:"Chernihiv",sumska:"Sumy",
+  lvivska:"Lviv",ternopilska:"Ternopil",khmelnytska:"Khmelnytskyi",vinnytska:"Vinnytsia",kyiv_city:"Kyiv",poltavska:"Poltava",kharkivska:"Kharkiv",
+  zakarpatska:"Zakarpattia",ivano_frankivska:"Ivano-Frankivsk",chernivetska:"Chernivtsi",cherkaska:"Cherkasy",dnipropetrovska:"Dnipro",donetska:"Donetsk",
+  odeska:"Odesa",kirovohradska:"Kirovohrad",zaporizka:"Zaporizhzhia",mykolaivska:"Mykolaiv",khersonska:"Kherson"};
 function geoMap(svg, o) {
-  svg.innerHTML = ""; const [, , VW, VH] = GEO.viewBox; svg.setAttribute("viewBox", `-40 -8 ${VW + 80} ${VH + 16}`);   // room for edge labels
+  svg.innerHTML = ""; const [, , VW, VH] = GEO.viewBox; svg.setAttribute("viewBox", `-40 -8 ${VW + 80} ${VH + 16}`);
   const id = svg.id, defs = el("defs", {}, svg);
   const hatch = (name, color, w) => { const p = el("pattern", {id: `${id}-${name}`, width: 7, height: 7, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)"}, defs);
     el("line", {x1: 0, y1: 0, x2: 0, y2: 7, stroke: color, "stroke-width": w, "stroke-opacity": 0.75}, p); };
   hatch("hatch", "var(--ink-3)", 1.6); hatch("alert", "var(--alert)", 2.2);
   const dots = el("pattern", {id: `${id}-dots`, width: 6, height: 6, patternUnits: "userSpaceOnUse"}, defs);
   el("circle", {cx: 3, cy: 3, r: 1.1, fill: "var(--ink-3)"}, dots);
-  for (const [k, d] of Object.entries(GEO.grey)) { const g = el("path", {d, class: "grey"}, svg);
-    hover(g, `<b>${GREY_NAMES[k][0]}</b><br>Not forecast (${GREY_NAMES[k][1]})`); }
-  const order = Object.keys(GEO.units).sort((a, b) => (a === "kyiv_city") - (b === "kyiv_city"));   // the city on top
+  for (const [k, d] of Object.entries(GEO.grey)) { const g = el("path", {d, class: "grey"}, svg); hover(g, `<b>${GREY_NAMES[k][0]}</b><br>Not forecast (${GREY_NAMES[k][1]})`); }
+  const order = Object.keys(GEO.units).sort((a, b) => (a === "kyiv_city") - (b === "kyiv_city"));
   for (const u of order) {
-    const d = GEO.units[u];
-    const p = el("path", {d, class: "u" + (o.sel === u ? " sel" : ""), "fill-rule": "evenodd", style: `fill:${o.fill(u)}`, role: "button", "aria-label": D.units[u].name, "data-u": u}, svg);
+    const p = el("path", {d: GEO.units[u], class: "u" + (o.sel === u ? " sel" : ""), "fill-rule": "evenodd", style: `fill:${o.fill(u)}`, role: "button", "aria-label": nm(u), "data-u": u}, svg);
     hover(p, () => o.tip(u));
     if (o.onPick) { p.addEventListener("click", () => o.onPick(u)); p.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); o.onPick(u); } }); }
     const ov = o.overlay && o.overlay(u);
-    if (ov) el("path", {d, "fill-rule": "evenodd", fill: `url(#${id}-${ov})`, "pointer-events": "none"}, svg);
+    el("path", {d: GEO.units[u], "fill-rule": "evenodd", fill: ov ? `url(#${id}-${ov})` : "none", "pointer-events": "none", "data-ov": u}, svg);
   }
-  for (const u of order) if (o.ring && o.ring(u)) el("path", {d: GEO.units[u], class: "ring"}, svg);
+  for (const u of order) el("path", {d: GEO.units[u], class: "ring", "data-ring": u, display: o.ring && o.ring(u) ? "inline" : "none"}, svg);
   for (const u of order) { const [x, y] = GEO.labels[u], v = o.value(u);
     { const n = el("text", {x, y: u === "kyiv_city" ? y - 14 : y - 16, class: "nm"}, svg); n.textContent = SHORT[u]; }
-    if (v !== null) { const t = el("text", {x, y: u === "kyiv_city" ? y + 9 : y + 14, class: "pv", "data-u": u}, svg); t.textContent = v; } }
+    const t = el("text", {x, y: u === "kyiv_city" ? y + 9 : y + 14, class: "pv", "data-u": u}, svg); t.textContent = v === null ? "" : v; }
   document.querySelectorAll(".map-attr").forEach(a => a.textContent = GEO.attribution);
 }
-const SHORT = {volynska:"Volyn",rivnenska:"Rivne",zhytomyrska:"Zhytomyr",kyivska:"Kyiv obl.",chernihivska:"Chernihiv",sumska:"Sumy",
-  lvivska:"Lviv",ternopilska:"Ternopil",khmelnytska:"Khmelnytskyi",vinnytska:"Vinnytsia",kyiv_city:"Kyiv",poltavska:"Poltava",kharkivska:"Kharkiv",
-  zakarpatska:"Zakarpattia",ivano_frankivska:"Ivano-Frankivsk",chernivetska:"Chernivtsi",cherkaska:"Cherkasy",dnipropetrovska:"Dnipro",donetska:"Donetsk",
-  odeska:"Odesa",kirovohradska:"Kirovohrad",zaporizka:"Zaporizhzhia",mykolaivska:"Mykolaiv",khersonska:"Kherson"};
-st.map = "freq";
-function drawMap() {
-  const B = D.by_unit, freqMax = Math.max(...Object.values(B).map(b => b.base_rate || 0)), CLIPS = 0.15;
-  const val = {}, fill = {}, tips = {};
-  for (const u of Object.keys(GEO.units)) {
-    const b = B[u]; fill[u] = "var(--tile-empty)"; val[u] = "—"; tips[u] = `<b>${D.units[u].name}</b><br>No study result`;
-    if (!b) continue;
-    if (st.map === "freq") { const k = b.base_rate === null ? 0 : b.base_rate / freqMax; fill[u] = `color-mix(in oklab, var(--s1) ${Math.round(8 + 82 * k)}%, var(--panel))`; val[u] = b.base_rate === null ? "n/a" : (100 * b.base_rate).toFixed(0) + "%"; }
-    else { const v = b.brier_skill_vs_recent; if (v === null) { val[u] = "n/a"; } else { const k = Math.min(1, Math.abs(v) / CLIPS); fill[u] = `color-mix(in oklab, ${v >= 0 ? "var(--s1)" : "var(--s2)"} ${Math.round(10 + 75 * k)}%, var(--panel))`; val[u] = (v > 0 ? "+" : "") + (100 * v).toFixed(0) + "%"; } }
-    tips[u] = `<b>${D.units[u].name}</b><br>New alert within the hour: ${b.base_rate === null ? "n/a" : (100 * b.base_rate).toFixed(1) + "%"} of ${fi(b.scored_hours)} forecast hours<br>Model vs two-week rule: ${b.brier_skill_vs_recent === null ? "n/a" : ((b.brier_skill_vs_recent > 0 ? "+" : "") + (100 * b.brier_skill_vs_recent).toFixed(1) + "% accuracy")}<br>Ranking within the oblast (AUC): ${b.roc_auc_within_unit === null ? "n/a" : b.roc_auc_within_unit.toFixed(2)}${b.low_n_reason ? "<br><i>Caution: " + esc(b.low_n_reason) + "</i>" : ""}`;
-  }
-  geoMap(document.getElementById("map"), {fill: u => fill[u], value: u => val[u], tip: u => tips[u], overlay: u => B[u] && B[u].low_n ? "hatch" : null});
-  const lg = document.getElementById("map-legend");
-  lg.innerHTML = st.map === "freq"
-    ? `<span><span class="sw" style="background:color-mix(in oklab, var(--s1) 10%, var(--panel))"></span>rarely</span><span><span class="sw" style="background:var(--s1)"></span>most often (darkest = highest share of forecast hours)</span><span><svg width="14" height="12" aria-hidden="true"><rect width="14" height="12" fill="url(#map-hatch)" stroke="var(--rule)"/></svg>few hours / hard to rank: caution</span>`
-    : `<span><span class="sw" style="background:var(--s2)"></span>model less accurate</span><span><span class="sw" style="background:var(--tile-empty)"></span>about equal</span><span><span class="sw" style="background:var(--s1)"></span>model more accurate</span><span class="muted">colour saturates at ±15%</span><span><svg width="14" height="12" aria-hidden="true"><rect width="14" height="12" fill="url(#map-hatch)" stroke="var(--rule)"/></svg>caution</span>`;
-  let tb = "<thead><tr><th scope=col>Oblast</th><th scope=col>Group</th><th scope=col>Forecast hours</th><th scope=col>New alert within the hour</th><th scope=col>Model vs two-week rule</th><th scope=col>Ranking AUC</th><th scope=col>Caution</th></tr></thead><tbody>";
-  Object.entries(B).sort((a, b) => D.units[a[0]].name.localeCompare(D.units[b[0]].name)).forEach(([u, b]) => {
-    tb += `<tr><td class="name">${D.units[u].name}</td><td class="grp">${GROUPS[D.units[u].group] || "Kyiv City"}</td><td>${fi(b.scored_hours)}</td><td>${b.base_rate === null ? "n/a" : (100 * b.base_rate).toFixed(1) + "%"}</td><td>${b.brier_skill_vs_recent === null ? "n/a" : ((b.brier_skill_vs_recent > 0 ? "+" : "") + (100 * b.brier_skill_vs_recent).toFixed(1) + "%")}</td><td>${b.roc_auc_within_unit === null ? "n/a" : b.roc_auc_within_unit.toFixed(2)}</td><td class="grp">${esc(b.low_n_reason || "")}</td></tr>`; });
-  document.getElementById("tbl-units").innerHTML = tb + "</tbody>";
-}
+const swatch = (fill, pat) => `<svg width="14" height="12" aria-hidden="true"><rect width="14" height="12" fill="${fill}"/>${pat ? `<rect width="14" height="12" fill="url(#${pat})"/>` : ""}</svg>`;
 
-st.tlUnit = "kyiv_city"; st.tlWeek = 0;
-function timeline() {
-  const T = D.timeline, start = new Date(T.start), weeks = Math.ceil(T.hours / 168);
-  const sel = document.getElementById("tl-unit");
-  if (!sel.options.length) { Object.keys(T.units).sort((a, b) => D.units[a].name.localeCompare(D.units[b].name)).forEach(u => { const o = document.createElement("option"); o.value = u; o.textContent = D.units[u].name; sel.appendChild(o); }); sel.value = st.tlUnit; sel.onchange = () => { st.tlUnit = sel.value; timeline(); }; }
-  const wk = document.getElementById("tl-week");
-  if (!wk.children.length) { for (let i = 0; i < weeks; i++) { const d = new Date(start.getTime() + i * 168 * 3600e3); const b = document.createElement("button"); b.type = "button"; b.id = "tl-w" + i; b.dataset.w = i; b.textContent = d.toLocaleDateString("en-GB", {day: "numeric", month: "short", timeZone: "Europe/Kyiv"}); b.onclick = () => { st.tlWeek = i; timeline(); }; wk.appendChild(b); } }
-  wk.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.w === st.tlWeek));
-  const U = T.units[st.tlUnit], h0 = st.tlWeek * 168, h1 = Math.min(T.hours, h0 + 168), n = h1 - h0;
-  const svg = document.getElementById("tl"); svg.innerHTML = "";
-  const W = 900, Hh = 260, l = 44, r = 12, t = 16, b = 36; svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
-  const x = h => l + (h - h0) / 168 * (W - l - r);
-  let maxP = 0; for (let h = h0; h < h1; h++) { maxP = Math.max(maxP, U.p_model[h] || 0, U.p_recent[h] || 0); }
-  maxP = Math.max(0.1, Math.ceil(maxP * 10) / 10);
-  const y = v => Hh - b - v / maxP * (Hh - t - b);
-  const BAND = {1: "var(--band-alert)", 2: "var(--band-gap)", 3: "var(--band-gap)", 4: "var(--band-feat)", 5: "var(--band-feat)"};
-  for (let h = h0; h < h1; h++) { const s = U.status[h]; if (s) el("rect", {x: x(h), y: t, width: (W - l - r) / 168 + 0.5, height: Hh - t - b, fill: BAND[s]}, svg); }
-  niceTicks(0, maxP, 4).forEach(v => { el("line", {x1: l, x2: W - r, y1: y(v), y2: y(v), stroke: "var(--grid)"}, svg); const tx = el("text", {x: l - 6, y: y(v) + 4, "text-anchor": "end"}, svg); tx.textContent = (100 * v).toFixed(0) + "%"; });
-  for (let d = 0; d <= 7; d++) { const hh = h0 + d * 24; if (hh > h1) break; el("line", {x1: x(hh), x2: x(hh), y1: t, y2: Hh - b, stroke: "var(--grid)"}, svg); if (d < 7 && hh < h1) { const dt = new Date(start.getTime() + hh * 3600e3); const tx = el("text", {x: x(hh) + 3, y: Hh - b + 16}, svg); tx.textContent = dt.toLocaleDateString("en-GB", {weekday: "short", day: "numeric", month: "short", timeZone: "UTC"}); } }
-  [["p_recent", "var(--s2)"], ["p_model", "var(--s1)"]].forEach(([k, c]) => { let d = "", pen = false; for (let h = h0; h < h1; h++) { const v = U[k][h]; if (v === null) { pen = false; continue; } d += (pen ? "L" : "M") + x(h + 0.5).toFixed(1) + "," + y(v).toFixed(1); pen = true; } el("path", {d, fill: "none", stroke: c, "stroke-width": 2, "stroke-linejoin": "round"}, svg); });
-  let nOn = 0; U.onsets_min.forEach(m => { const hh = m / 60; if (hh < h0 || hh >= h1) return; nOn++; const c = el("circle", {cx: x(hh), cy: t + 6, r: 4, fill: "var(--alert)", stroke: "var(--panel)", "stroke-width": 1.5}, svg); const dt = new Date(start.getTime() + m * 60e3); hover(c, `New alert started<br>${dt.toLocaleString("en-GB", {timeZone: "Europe/Kyiv", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"})} Kyiv time`); });
-  const ax = el("text", {x: l, y: Hh - 4}, svg); ax.textContent = "days in UTC; hover a dot for Kyiv time";
-  const cover = U.status.slice(h0, h1).filter(s => s === 0).length;
-  document.getElementById("tl-note").textContent = `${D.units[st.tlUnit].name}: ${nOn} new alerts started this week; ${cover} of ${n} hours were forecast.`;
-}
-
-function answer() {
-  const h1 = D.horizons.h1, m = h1.final.model.overall, s = m.brier_skill_vs_recent;
-  const state = s === null || s === undefined ? "na" : (s > 0 ? "yes" : "no");
-  const yes = state === "yes";
-  const icon = yes ? '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2"/></svg>' : '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
-  document.getElementById("answer").innerHTML = `
-    <div class="eyebrow">Final test · 1 hour ahead · scored once</div>
-    <div class="big num">${s === null ? "n/a" : (s > 0 ? "+" : "") + s.toFixed(3)}</div>
-    <div>Brier skill of the model against the rolling recent-rate baseline</div>
-    ${state === "na" ? '<span class="verdict na">Skill undefined (see the table)</span>' : `<span class="verdict ${state}">${icon}${yes ? "Beats the recent rate" : "Does not beat the recent rate overall"}</span>`}
-    <dl><dt>Scored hours (unit × hour)</dt><dd class="num">${fi(m.rows)}</dd><dt>Base rate (new alert within 1 h)</dt><dd class="num">${f(m.base_rate)}</dd>
-    <dt>Model Brier / recent-rate Brier</dt><dd class="num">${f(m.brier, 4)} / ${f(h1.final.recent_rate.overall.brier, 4)}</dd>
-    <dt>Within-unit AUC, model / recent rate</dt><dd class="num">${f(m.roc_auc_within_unit_mean)} / ${f(h1.final.recent_rate.overall.roc_auc_within_unit_mean)}</dd></dl>`;
-}
-
-function controls() {
-  const seg = document.getElementById("seg-g");
-  seg.innerHTML = Object.entries(GROUPS).map(([k, v]) => `<button type="button" id="btn-g-${k}" data-g="${k}" aria-pressed="${k === st.g}">${v}</button>`).join("");
-  document.querySelectorAll("#seg-h button").forEach(b => b.onclick = () => { st.h = b.dataset.h; save(); render(); });
-  document.querySelectorAll("#seg-g button").forEach(b => b.onclick = () => { st.g = b.dataset.g; save(); render(); });
-  document.querySelectorAll("#seg-p button").forEach(b => b.onclick = () => { st.p = b.dataset.p; save(); render(); });
-}
-
-function skillChart() {
-  const svg = document.getElementById("ch-skill"); svg.innerHTML = "";
-  const ps = preds().filter(p => p !== "recent_rate");
-  const vals = ps.map(p => M()[p][st.g].brier_skill_vs_recent);
-  const W = 520, rowH = 34, top = 10, left = 170, right = 64, Hh = top + ps.length * rowH + 26;
-  svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
-  const fin = vals.filter(v => v !== null);
-  let lo = Math.min(-0.05, ...fin), hi = Math.max(0.05, ...fin);
-  const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
-  const x = v => left + (v - lo) / (hi - lo) * (W - left - right);
-  const ticks = niceTicks(lo, hi, 5);
-  ticks.forEach(t => { el("line", {x1: x(t), x2: x(t), y1: top - 4, y2: Hh - 22, stroke: "var(--grid)"}, svg); const tx = el("text", {x: x(t), y: Hh - 6, "text-anchor": "middle"}, svg); tx.textContent = t.toFixed(2); });
-  el("line", {x1: x(0), x2: x(0), y1: top - 6, y2: Hh - 22, stroke: "var(--zero)", "stroke-width": 1.5}, svg);
-  ps.forEach((p, i) => {
-    const v = vals[i], y = top + i * rowH;
-    const lb = el("text", {x: left - 10, y: y + rowH / 2 + 4, "text-anchor": "end", class: "lbl"}, svg); lb.textContent = NAMES[p];
-    if (v === null) { const t = el("text", {x: x(0) + 6, y: y + rowH / 2 + 4}, svg); t.textContent = "n/a"; return; }
-    const x0 = Math.min(x(0), x(v)), w = Math.max(2, Math.abs(x(v) - x(0)));
-    const r = el("rect", {x: x0, y: y + 7, width: w, height: rowH - 14, rx: 4, fill: COLOR[p], class: "bar"}, svg);
-    const vt = el("text", {x: v >= 0 ? x(v) + 6 : x(0) + 6, y: y + rowH / 2 + 4, "text-anchor": "start"}, svg); vt.textContent = (v > 0 ? "+" : "") + v.toFixed(3);
-    const c = M()[p][st.g];
-    const nb = x => x === null || x === undefined ? "n/a" : x.toFixed(4);
-    hover(r, `<b>${NAMES[p]}</b> · ${GROUPS[st.g]}<br>Brier skill ${(v > 0 ? "+" : "") + v.toFixed(4)}<br>Brier ${nb(c.brier)} vs recent rate ${nb(M().recent_rate[st.g].brier)}<br>${fi(c.rows)} scored hours`);
-  });
-}
-
-function aucChart() {
-  const svg = document.getElementById("ch-auc"); svg.innerHTML = "";
-  const ps = preds(); const W = 520, rowH = 30, top = 10, left = 170, right = 30, Hh = top + ps.length * rowH + 26;
-  svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
-  const lo = 0.4, hi = 1.0, x = v => left + (v - lo) / (hi - lo) * (W - left - right);
-  [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0].forEach(t => { el("line", {x1: x(t), x2: x(t), y1: top - 4, y2: Hh - 22, stroke: t === 0.5 ? "var(--zero)" : "var(--grid)", "stroke-dasharray": t === 0.5 ? "3 3" : null}, svg); const tx = el("text", {x: x(t), y: Hh - 6, "text-anchor": "middle"}, svg); tx.textContent = t.toFixed(1); });
-  ps.forEach((p, i) => {
-    const c = M()[p][st.g], y = top + i * rowH + rowH / 2;
-    const lb = el("text", {x: left - 10, y: y + 4, "text-anchor": "end", class: "lbl"}, svg); lb.textContent = NAMES[p];
-    const a = c.roc_auc_pooled, b = c.roc_auc_within_unit_mean;
-    if (a !== null && b !== null) el("line", {x1: x(Math.max(lo, a)), x2: x(Math.max(lo, b)), y1: y, y2: y, stroke: "var(--rule)", "stroke-width": 3}, svg);
-    if (a !== null) { const d = el("circle", {cx: x(Math.max(lo, a)), cy: y, r: 5, fill: "var(--ink-3)", stroke: "var(--panel)", "stroke-width": 2}, svg); hover(d, `<b>${NAMES[p]}</b><br>Pooled ROC-AUC ${a.toFixed(3)}`); }
-    if (b !== null) { const d = el("circle", {cx: x(Math.max(lo, b)), cy: y, r: 5.5, fill: "var(--panel)", stroke: COLOR[p], "stroke-width": 2.5}, svg); hover(d, `<b>${NAMES[p]}</b><br>Within-unit ROC-AUC ${b.toFixed(3)}<br>Units with ≥10 onsets and ≥10 quiet hours: ${c.within_unit_units_used}${c.within_unit_units_excluded ? "<br>Left out: " + esc(c.within_unit_units_excluded.replaceAll(";", ", ")) : ""}`); }
-    else { const t = el("text", {x: x(0.5) + 6, y: y + 4}, svg); t.textContent = "within: n/a"; }
-  });
-}
-
-function table() {
-  const cols = [["rows", "Hours", v => fi(v)], ["base_rate", "Base rate"], ["brier", "Brier", v => f(v, 4)], ["brier_skill_vs_recent", "Skill vs recent"], ["roc_auc_pooled", "AUC pooled"], ["roc_auc_within_unit_mean", "AUC within"], ["pr_auc", "PR-AUC"], ["pr_auc_over_base", "PR-AUC ÷ base"]];
-  const reasons = st.p === "final" ? (H().final_reasons || {}) : {};
-  let html = "<thead><tr><th scope=col>Predictor</th>" + cols.map(c => `<th scope=col>${c[1]}</th>`).join("") + "</tr></thead><tbody>";
-  preds().forEach(p => { const c = M()[p][st.g]; const rs = reasons[`${p}/${st.g}`];
-    html += `<tr class="${p === "model" ? "is-model" : ""}"><td class="name"><span class="sw" style="background:${COLOR[p]}"></span> ${NAMES[p]}${c.low_n ? '<span class="flag" title="Few scored hours or units left out of the within-unit AUC">low-n</span>' : ""}</td>` +
-      cols.map(([k, , fn]) => `<td${rs ? ` title="${esc(rs.join("; "))}"` : ""}>${fn ? fn(c[k]) : f(c[k])}</td>`).join("") + "</tr>"; });
-  document.getElementById("tbl").innerHTML = html + "</tbody>";
-  document.getElementById("tbl-note").textContent = `${st.p === "final" ? "Final test" : "Validation"}, ${H().H} horizon, ${GROUPS[st.g]}. "low-n" marks groups with few scored hours or units left out of the within-unit AUC; n/a means the metric is undefined (for example, a unit with no onsets).`;
-}
-
-function reliability() {
-  const chips = document.getElementById("rel-chips"); const ps = ORDER.filter(p => D.horizons[st.h].final[p]);
-  chips.innerHTML = ps.map(p => `<button type="button" class="chip" id="chip-${p}" data-p="${p}" aria-pressed="${st.rel.has(p)}"><span class="sw" style="background:${COLOR[p]}"></span>${NAMES[p]}</button>`).join("");
-  chips.querySelectorAll(".chip").forEach(b => b.onclick = () => { const p = b.dataset.p; if (st.rel.has(p)) st.rel.delete(p); else { if (st.rel.size >= 3) st.rel.delete([...st.rel][0]); st.rel.add(p); } reliability(); });
-  const svg = document.getElementById("ch-rel"); svg.innerHTML = "";
-  const W = 460, Hh = 400, l = 46, r = 14, t = 10, b = 40; svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
-  const rows = D.horizons[st.h].reliability;
-  const maxP = Math.min(1, Math.max(0.2, ...rows.filter(x => st.rel.has(x.baseline)).map(x => Math.max(x.mean_p, x.mean_y))) * 1.08);
-  const x = v => l + v / maxP * (W - l - r), y = v => Hh - b - v / maxP * (Hh - t - b);
-  niceTicks(0, maxP, 5).forEach(v => { el("line", {x1: x(v), x2: x(v), y1: t, y2: Hh - b, stroke: "var(--grid)"}, svg); el("line", {x1: l, x2: W - r, y1: y(v), y2: y(v), stroke: "var(--grid)"}, svg); const a = el("text", {x: x(v), y: Hh - b + 16, "text-anchor": "middle"}, svg); a.textContent = v.toFixed(2); const c = el("text", {x: l - 6, y: y(v) + 4, "text-anchor": "end"}, svg); c.textContent = v.toFixed(2); });
-  el("line", {x1: x(0), y1: y(0), x2: x(maxP), y2: y(maxP), stroke: "var(--zero)", "stroke-dasharray": "4 4"}, svg);
-  const ax = el("text", {x: (l + W - r) / 2, y: Hh - 6, "text-anchor": "middle"}, svg); ax.textContent = "mean predicted probability";
-  const ay = el("text", {x: 12, y: (t + Hh - b) / 2, "text-anchor": "middle", transform: `rotate(-90 12 ${(t + Hh - b) / 2})`}, svg); ay.textContent = "observed share with a new alert";
-  const maxN = Math.max(...rows.map(x => x.n));
-  ps.filter(p => st.rel.has(p)).forEach(p => {
-    const pts = rows.filter(x => x.baseline === p);
-    el("polyline", {points: pts.map(q => `${x(q.mean_p)},${y(q.mean_y)}`).join(" "), fill: "none", stroke: COLOR[p], "stroke-width": 2}, svg);
-    pts.forEach(q => { const c = el("circle", {cx: x(q.mean_p), cy: y(q.mean_y), r: 4 + 8 * Math.sqrt(q.n / maxN), fill: COLOR[p], "fill-opacity": 0.85, stroke: "var(--panel)", "stroke-width": 2}, svg);
-      hover(c, `<b>${NAMES[p]}</b><br>Bin ${q.lo.toFixed(1)}–${q.hi.toFixed(1)}: ${fi(q.n)} hours<br>Mean predicted ${q.mean_p.toFixed(3)}<br>Observed ${q.mean_y.toFixed(3)}`); });
-  });
-}
-
-function citl() {
-  const rows = D.horizons[st.h].citl.filter(r => ORDER.includes(r.predictor));
-  let html = "<thead><tr><th scope=col>Predictor</th>" + Object.values(GROUPS).map(g => `<th scope=col>${g}</th>`).join("") + "</tr></thead><tbody>";
-  ORDER.filter(p => rows.some(r => r.predictor === p)).forEach(p => { html += `<tr class="${p === "model" ? "is-model" : ""}"><td class="name"><span class="sw" style="background:${COLOR[p]}"></span> ${NAMES[p]}</td>` + Object.keys(GROUPS).map(g => { const r = rows.find(z => z.predictor === p && z.group === g); return `<td title="predicted ${r.mean_pred.toFixed(4)}, observed ${r.mean_obs.toFixed(4)}">${(r.pred_minus_obs > 0 ? "+" : "") + r.pred_minus_obs.toFixed(3)}</td>`; }).join("") + "</tr>"; });
-  document.getElementById("tbl-citl").innerHTML = html + "</tbody>";
-  const cal = D.horizons[st.h].calibrator;
-  document.getElementById("cal-note").textContent = `Values are predicted minus observed. Pre-registered rule: ${D.horizons[st.h].prereg.calibration_rule}. Validation ECE ${cal.ece.toFixed(4)}, so ${cal.decision === "platt" ? "Platt scaling was fitted on validation and applied unchanged to the test" : "no recalibration was applied"}.`;
-}
-
-function beforeAfter() {
-  const svg = document.getElementById("ch-ba"); svg.innerHTML = "";
-  const rows = NR().before_after.filter(r => String(r.unit).startsWith("["));
-  const g = Object.keys(GROUPS), W = 520, top = 26, rowH = 46, left = 120, mid = 300, right = 20, Hh = top + g.length * rowH + 10;
-  svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
-  const get = (grp, win) => rows.find(r => r.group === grp && r.window.startsWith(win));
-  const maxO = Math.max(...rows.map(r => r.onsets_per_30d));
-  const xo = v => left + v / maxO * (mid - left - 30), xs = v => mid + v * (W - mid - right);
-  const h1 = el("text", {x: left, y: 12}, svg); h1.textContent = "onsets per 30 days";
-  const h2 = el("text", {x: mid, y: 12}, svg); h2.textContent = "share of time under alert";
-  g.forEach((grp, i) => { const y = top + i * rowH, b = get(grp, "official"), a = get(grp, "api");
-    const lb = el("text", {x: left - 10, y: y + 20, "text-anchor": "end", class: "lbl"}, svg); lb.textContent = GROUPS[grp];
-    [[b, "var(--ink-3)", 0, "Official, before"], [a, "var(--s6)", 15, "API, after"]].forEach(([r, c, dy, nm]) => { if (!r) return;
-      const r1 = el("rect", {x: left, y: y + 4 + dy, width: Math.max(2, xo(r.onsets_per_30d) - left), height: 12, rx: 3, fill: c}, svg);
-      hover(r1, `<b>${GROUPS[grp]}</b> · ${nm}<br>${r.onsets_per_30d.toFixed(1)} onsets per 30 days per unit<br>${fi(r.exposed_hours)} exposed unit-hours`);
-      const t1 = el("text", {x: xo(r.onsets_per_30d) + 4, y: y + 14 + dy}, svg); t1.textContent = r.onsets_per_30d.toFixed(0);
-      const r2 = el("rect", {x: mid, y: y + 4 + dy, width: Math.max(2, xs(r.share_under_alert) - mid), height: 12, rx: 3, fill: c}, svg);
-      hover(r2, `<b>${GROUPS[grp]}</b> · ${nm}<br>${(100 * r.share_under_alert).toFixed(1)}% of exposed hours under alert`);
-      const t2 = el("text", {x: xs(r.share_under_alert) + 4, y: y + 14 + dy}, svg); t2.textContent = (100 * r.share_under_alert).toFixed(0) + "%"; });
-  });
-}
-
-function transfer() {
-  const rows = NR().transfer;
-  let html = "<thead><tr><th scope=col>Predictor</th><th scope=col>Group</th><th scope=col>AUC within</th><th scope=col>Units</th><th scope=col>Mean predicted</th><th scope=col>Observed</th><th scope=col>Pred − obs</th></tr></thead><tbody>";
-  ["model", "recent_rate"].forEach(p => Object.keys(GROUPS).forEach(gk => { const r = rows.find(z => z.predictor === p && z.group === gk); if (!r) return;
-    html += `<tr class="${p === "model" ? "is-model" : ""}"><td class="name">${gk === "overall" ? `<span class="sw" style="background:${COLOR[p]}"></span> ${NAMES[p]}` : ""}</td><td class="grp">${GROUPS[gk]}${r.low_n ? '<span class="flag">low-n</span>' : ""}</td><td>${f(r.roc_auc_within_unit_mean)}</td><td>${fi(r.within_unit_units_used)}</td><td>${f(r.mean_pred)}</td><td>${f(r.mean_obs)}</td><td>${r.pred_minus_obs === null ? "n/a" : (r.pred_minus_obs > 0 ? "+" : "") + r.pred_minus_obs.toFixed(3)}</td></tr>`; }));
-  document.getElementById("tbl-tr").innerHTML = html + "</tbody>";
-  const mets = NR().metrics;
-  let nh = "<thead><tr><th scope=col>Predictor</th>" + Object.values(GROUPS).map(g => `<th scope=col>${g}</th>`).join("") + "</tr></thead><tbody>";
-  ORDER.filter(p => mets[p]).forEach(p => { nh += `<tr class="${p === "model" ? "is-model" : ""}"><td class="name"><span class="sw" style="background:${COLOR[p]}"></span> ${NAMES[p]}</td>` + Object.keys(GROUPS).map(g => { const c = mets[p][g]; const v = c ? c.brier_skill_vs_recent : null; return `<td title="Brier ${c && c.brier !== null ? c.brier.toFixed(4) : "n/a"}">${v === null ? "n/a" : (v > 0 ? "+" : "") + v.toFixed(3)}</td>`; }).join("") + "</tr>"; });
-  document.getElementById("tbl-nrm").innerHTML = nh + "</tbody>";
-  document.getElementById("tr-outcome").textContent = D.transfer_outcome;
-  const m = rows.find(r => r.predictor === "model" && r.group === "overall");
-  if (!m || m.pred_minus_obs === null) { document.getElementById("tr-note").textContent = "Transfer summary unavailable for this variant."; return; }
-  const gapTxt = m.pred_minus_obs < 0 ? "under-predicts" : "over-predicts";
-  document.getElementById("tr-note").textContent = `Measured: on the new data the frozen model ${gapTxt} the overall onset rate (${m.mean_pred.toFixed(3)} predicted vs ${m.mean_obs.toFixed(3)} observed). Read with care: one month, a new data source and a new alert system at once; the cause of any shift is a hypothesis, not a finding. If transfer fails, the model needs recalibration or retraining on post-reform data before use.`;
-}
-
-function method() {
-  const d = D.data, h1 = D.horizons.h1;
-  const items = [
-    ["Target", "A new alert starts in the oblast within the next hour (or three hours). Alerts at oblast, raion and hromada level are merged per oblast; an onset is the start of a merged interval."],
-    ["Already under alert", "Hours when the oblast is already under a recent alert are excluded. An alert counts only for its first 24 hours, so months-long hromada alerts cannot freeze an oblast."],
-    ["Known at t only", "Every feature uses data stamped at or before the forecast hour; an alert whose end is not yet known counts as still running for at most 24 hours."],
-    ["Splits", `Train ${h1.dates.train[0].slice(0, 10)} → ${h1.dates.train[1].slice(0, 10)}, validation → ${h1.dates.val[1].slice(0, 10)}, test → ${h1.dates.test[1].slice(0, 10)}. Training rows whose label window reaches past a cut-off are dropped.`],
-    ["Baselines", "Rolling 14-day recent rate (labels already known at t, shrunk toward the oblast's training rate), hour × weekday climatology, raw and calibrated persistence."],
-    ["Scored once", `Model, calibrator, baseline tables, data and code were hashed and pre-registered for both horizons before one joint access to the test. Best iteration ${h1.prereg.best_iteration} (H = 1), early-stopped on validation, no refit.`],
-    ["Data cleaning", `${fi(d.row_counts.duplicate_rows)} of ${fi(d.row_counts.raw_rows)} official rows were exact duplicates and removed. Recording gap detected ${d.detected_gaps.map(g => g[0].slice(5, 16) + " → " + g[1].slice(5, 16)).join(", ")} UTC; masked as missing, not as quiet.`],
-    ["Open API alerts", "Alerts still running when the API was read are kept with an unknown end and the same 24-hour rule, so whether an alert counts never depends on how it later ended."],
-  ];
-  document.getElementById("method").innerHTML = items.map(([k, v]) => `<div><b>${k}</b><p class="muted">${esc(v)}</p></div>`).join("");
-  document.getElementById("tbl-leak").innerHTML = "<thead><tr><th scope=col>Check</th><th scope=col>Result</th><th scope=col>Test</th></tr></thead><tbody>" + D.leakage.map(r => `<tr><td class="name" style="white-space:normal;min-width:260px">${esc(r.check)}</td><td class="${r.result === "PASS" ? "pass" : "fail"}">${r.result}</td><td style="text-align:left;color:var(--ink-3)">${esc(r.test.split("::")[1])}</td></tr>`).join("") + "</tbody>";
-  const reasonNames = {purge: "Label crosses the end", masked: "Under alert / gap", y_nan: "Label unknown", feature_nan: "Feature missing"};
-  let cov = "<thead><tr><th scope=col>Horizon</th><th scope=col>Unit-hours</th><th scope=col>Scored</th>" + Object.values(reasonNames).map(v => `<th scope=col>${v}</th>`).join("") + "</tr></thead><tbody>";
-  ["h1", "h3"].forEach(k => { const e = D.horizons[k].eligibility; cov += `<tr><td class="name">${D.horizons[k].H}</td><td>${fi(e.in_range)}</td><td>${fi(e.eligible)}</td>` + Object.keys(reasonNames).map(r => `<td>${fi(e.excluded_exclusive[r])}</td>`).join("") + "</tr>"; });
-  document.getElementById("tbl-cov").innerHTML = cov + "</tbody>";
-  document.getElementById("foot-meta").textContent = `New-regime scoring window ${NR().meta.scored_range[0].slice(0, 16)} → ${NR().meta.scored_range[1].slice(0, 16)} UTC; API coverage starts ${NR().meta.history_start.slice(0, 16)} UTC.`;
-}
-
-function niceTicks(lo, hi, n) { const span = hi - lo, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0))); const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => span / s <= n) || mag * 10; const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10)); return out; }
-
-
-// ---------- live forecast (M8): polls /api/forecast every minute; greys out when stale ----------
-const LIVE_URL = "/api/forecast", LIVE_EVERY = 60e3, STALE_AFTER = 5 * 60e3;       // STALE_AFTER = live.mjs
-const PBINS = [0.05, 0.15, 0.30, 0.50, Infinity], PLABEL = ["under 5%", "5–15%", "15–30%", "30–50%", "50% or more"], PMIX = [24, 40, 56, 74, 94];
-const pBin = p => PBINS.findIndex(hi => p < hi);
-const pFill = p => `color-mix(in oklab, var(--s6) ${PMIX[pBin(p)]}%, var(--panel))`;
-const pct = p => p < 0.01 ? "<1%" : Math.round(100 * p) + "%";
-const kyiv = t => new Date(t).toLocaleTimeString("en-GB", {timeZone: "Europe/Kyiv", hour: "2-digit", minute: "2-digit"});
-const ago = ms => ms < 90e3 ? "just now" : ms < 90 * 60e3 ? `${Math.round(ms / 60e3)} min ago` : `${(ms / 3600e3).toFixed(1)} h ago`;
-const mins = m => m === null ? "n/a" : m < 60 ? `${Math.round(m)} min ago` : m < 48 * 60 ? `${Math.floor(m / 60)} h ${Math.round(m % 60)} min ago` : `${Math.round(m / 1440)} days ago`;
-const live = {payload: null, error: null, sel: null};
-const liveStale = (P, now) => !P || !P.status || !P.forecast || P.status.ok === false || now - P.forecast.tau > STALE_AFTER;
-// ---------- typed forecasts (M6, plans/M6-site.md §4): oblast tooltip + card only, never the main view ----------
 /* typed-block:start (pure functions; extracted and tested by netlify/live/test/typed.test.mjs) */
 const TYPED_NAME = {yellow: "Yellow (drones)", red: "Red (missiles)"};
 const tEsc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -737,275 +324,301 @@ function typedCardHtml(x, meta, monthly, monthlyError) {
     + (monthlyError ? `unavailable (data file error).` : nMonths ? `${nMonths} month${nMonths > 1 ? "s" : ""} available.` : `available after the first monthly retrain.`) + `</p></div>`;
 }
 /* typed-block:end */
-function liveCard(u, F) {
-  const x = F && F.units[u];
-  if (!x) return `<div class="eyebrow">${esc(D.units[u].name)}</div><p class="muted">No live forecast loaded.</p>`;
-  const end = kyiv(F.tau + 60 * 60e3);
-  const simple = x.recent_rate === null ? "" : `<span class="simple" title="How often a new alert started in this oblast's forecastable hours of the last 14 days">simple rule: ${pct(x.recent_rate)}</span>`;
-  const since = x.state === "alert_running" ? underSince(u, F.tau) : null;
-  const head = x.state === "forecast" ? `<div class="detail-head"><div class="big">${pct(x.p)}</div>${simple}</div><p class="muted small">chance that a new alert starts before ${end} Kyiv time (model); the simple rule is the two-week rate.</p>`
-    : x.state === "alert_running" ? `<div class="big" style="color:var(--alert)">Alert</div><p class="muted small">Under alert${since !== null ? ` since <b>${kyiv(since)}</b> Kyiv time` : ""}: an alert that started less than 24 hours ago is still running (its end is confirmed with a delay of up to ~24 min), so there is no forecast of a new one.</p>`
-    : `<div class="big" style="color:var(--ink-3)">Data gap</div><p class="muted small">The live feed missed some minutes; inputs that look back over the gap are unknown, so no forecast is shown.</p>`;
-  const standing = x.physical_alert && x.state === "forecast"
-    ? `<p class="small"><b>Standing alert:</b> an alert is listed as active, but it started more than 24 hours ago. An alert counts only for its first 24 hours, so the oblast is forecast as usual.</p>` : "";
-  const why = {few_hours: "the two-week rate rests on fewer than 48 forecastable hours", beyond_training: "the two-week rate is higher than almost anything the model saw in training",
-               rejected_history_record: "the feed sent a broken history record for this oblast in the last 24 h", rejected_active_record: "the feed sent a broken active-alert record for this oblast in the last 24 h"};
-  const cau = (x.caution || []).filter(c => why[c]).map(c => why[c]);
-  const nb = neighboursNow(u, F);
-  const names = list => list.length ? list.map(n => esc(nm(n))).join(", ") : "none";
-  return `<div class="eyebrow">${esc(D.units[u].name)}</div>${head}${standing}${cau.length ? `<p class="small" style="color:var(--s4)"><b>Caution:</b> ${cau.join("; ")}.</p>` : ""}<dl>
-    <dt>Two-week rule (recent rate)</dt><dd>${x.recent_rate === null ? "n/a" : pct(x.recent_rate)}</dd>
-    <dt>…from forecastable hours, last 14 days</dt><dd>${x.recent_hours === null || x.recent_hours === undefined ? "n/a" : Number(x.recent_hours)}</dd>
-    <dt>Alerts started, last 24 h</dt><dd>${x.alerts_last_24h === null ? "n/a" : Number(x.alerts_last_24h)}</dd>
-    <dt>Last alert started</dt><dd>${mins(x.minutes_since_last_start)}</dd>
-    <dt>Alert listed as active now</dt><dd>${x.physical_alert ? "yes" : "no"}</dd>
-    <dt>Neighbours under alert now</dt><dd>${nb.capped.length} of ${nb.all.length}</dd>
-    <dt>History confirmed up to</dt><dd>${x.confirmed_until === null ? "n/a" : kyiv(x.confirmed_until)}</dd></dl>
-    <p class="small muted">Neighbours under alert (first 24 h, as the model counts them): ${names(nb.capped)}.${nb.standing.length ? ` Listed as active but standing (older than 24 h, not counted): ${names(nb.standing)}.` : ""}</p>`
-    + (liveStale(live.payload, Date.now()) ? "" : typedCardHtml(x.typed, F.typed, live.payload && live.payload.typed_monthly, live.payload && live.payload.typed_monthly_error));
-}
-function liveTip(u, F) {
-  const x = F && F.units[u]; if (!x) return `<b>${esc(D.units[u].name)}</b>`;
-  const s = x.state === "forecast" ? `Chance of a new alert in the next 60 min: <b>${pct(x.p)}</b>` : x.state === "alert_running" ? "Alert running: no forecast" : "Data gap: no forecast";
-  return `<b>${esc(D.units[u].name)}</b><br>${s}${x.physical_alert ? "<br>Alert listed as active now" : ""}<br>Two-week rule: ${x.recent_rate === null ? "n/a" : pct(x.recent_rate)}`
-    + (liveStale(live.payload, Date.now()) ? "" : typedTipHtml(x.typed, F.typed));
-}
-function drawLive() {
-  const P = live.payload, F = P && P.forecast, now = Date.now(), stale = liveStale(P, now);
-  const bar = document.getElementById("live-status");
-  const failed = P && P.status && P.status.ok === false;
-  if (!F) { bar.className = "livebar " + (live.error || failed ? "bad" : "wait");
-    bar.innerHTML = live.error ? `<span><span class="pulse"></span>Live forecast unavailable: the live service did not answer (${esc(live.error)}). Retrying every minute.</span>`
-      : failed ? `<span><span class="pulse"></span>Live forecast unavailable: the latest update failed. Retrying every minute.</span>`
-      : `<span><span class="pulse"></span>No live forecast yet. Retrying every minute.</span>`; }
-  else if (stale) { bar.className = "livebar bad";
-    bar.innerHTML = `<span><span class="pulse"></span>Out of date: the last forecast was made at ${kyiv(F.tau)} Kyiv time (${ago(now - F.tau)})${P.status && P.status.ok === false ? " and the latest update failed" : ""}. Do not rely on it.</span>`; }
-  else { bar.className = "livebar ok";
-    const hf = (P.status.history_failing || []).map(h => D.units[h.unit] ? D.units[h.unit].name : "?");
-    bar.innerHTML = `<span><span class="pulse"></span>Forecast for <b>${kyiv(F.tau)}–${kyiv(F.tau + 60 * 60e3)}</b> Kyiv time</span><span>updated ${ago(now - F.tau)}</span>`
-      + (hf.length ? `<span>History checks failing for: ${esc(hf.join(", "))}</span>` : ""); }
-  const svg = document.getElementById("live-map"); svg.classList.toggle("is-stale", !!F && stale);
-  const X = u => F && F.units[u];
-  geoMap(svg, {
-    fill: u => { const x = X(u); return !x ? "var(--tile-empty)" : x.state === "forecast" ? pFill(x.p) : x.state === "alert_running" ? "var(--alert-soft)" : "var(--tile-empty)"; },
-    overlay: u => { const x = X(u); return !x ? null : x.state === "alert_running" ? "alert" : x.state === "data_gap" ? "dots" : (x.caution || []).length ? "hatch" : null; },
-    ring: u => { const x = X(u); return !!x && x.physical_alert; },
-    value: u => { const x = X(u); return !x ? null : x.state === "forecast" ? pct(x.p) : x.state === "alert_running" ? "alert" : "gap"; },
-    tip: u => liveTip(u, F), sel: live.sel,
-    onPick: u => { live.sel = u; live.detail = u; document.getElementById("live-card").innerHTML = liveCard(u, F); drawLive(); drawDetail(); }});
-  document.getElementById("live-legend").innerHTML = PLABEL.map((l, i) => `<span><span class="sw" style="background:color-mix(in oklab, var(--s6) ${PMIX[i]}%, var(--panel))"></span>${l}</span>`).join("")
-    + `<span><svg width="14" height="12" aria-hidden="true"><rect width="14" height="12" fill="var(--alert-soft)"/><rect width="14" height="12" fill="url(#live-map-alert)"/></svg>alert running (no forecast)</span>`
-    + `<span><svg width="14" height="12" aria-hidden="true"><rect x="1.5" y="1.5" width="11" height="9" fill="none" stroke="var(--alert)" stroke-width="2.4"/></svg>alert listed as active now</span>`
-    + `<span><svg width="14" height="12" aria-hidden="true"><rect width="14" height="12" fill="var(--tile-empty)"/><rect width="14" height="12" fill="url(#live-map-dots)"/></svg>data gap</span>`
-    + `<span><svg width="14" height="12" aria-hidden="true"><rect width="14" height="12" fill="url(#live-map-hatch)" stroke="var(--rule)"/></svg>caution (see card)</span>`
-    + `<span><span class="sw" style="background:var(--tile-empty)"></span>not forecast</span>`;
-  if (live.sel) document.getElementById("live-card").innerHTML = liveCard(live.sel, F);
-  const top = F ? Object.entries(F.units).filter(([, x]) => x.state === "forecast").sort((a, b) => b[1].p - a[1].p).slice(0, 6) : [];
-  document.getElementById("live-top").innerHTML = top.length ? top.map(([u, x]) => `<li><button type="button" data-u="${u}"><span>${esc(D.units[u].name)}</span><span class="num">${pct(x.p)}</span></button></li>`).join("") : `<li class="muted">No forecast available.</li>`;
-  document.querySelectorAll("#live-top button").forEach(b => b.onclick = () => { live.sel = b.dataset.u; live.detail = b.dataset.u; drawLive(); drawDetail(); });
-  let tb = "<caption class=\"small muted\" style=\"caption-side:bottom;text-align:left\">* caution: see the oblast card</caption><thead><tr><th scope=col>Oblast</th><th scope=col>Chance, next 60 min</th><th scope=col>Two-week rule</th><th scope=col>Alerts, last 24 h</th><th scope=col>Active now</th></tr></thead><tbody>";
-  if (F) Object.keys(F.units).sort((a, b) => D.units[a].name.localeCompare(D.units[b].name)).forEach(u => { const x = F.units[u];
-    tb += `<tr><td class="name">${esc(D.units[u].name)}</td><td>${x.state === "forecast" ? pct(x.p) + ((x.caution || []).length ? " *" : "") : x.state === "alert_running" ? "alert running" : "data gap"}</td><td>${x.recent_rate === null ? "n/a" : pct(x.recent_rate)}</td><td>${x.alerts_last_24h === null ? "n/a" : Number(x.alerts_last_24h)}</td><td>${x.physical_alert ? "yes" : "no"}</td></tr>`; });
-  document.getElementById("live-tbl").innerHTML = tb + "</tbody>";
-}
-async function pollLive() {
-  try { const r = await fetch(LIVE_URL, {cache: "no-store"}); if (!r.ok) throw new Error("HTTP " + r.status);
-    live.payload = await r.json(); live.error = null; }
-  catch (e) { live.error = e.message || "network error"; }
-  drawLive();
-}
 
-// ---------- M11 §B1-§B3: oblast panel, last 7 days, recent pattern, live check (exploratory API data) ----------
-const HISTORY_URL = "/api/history", CHECK_URL = "/api/check", HISTORY_EVERY = 10 * 60e3, CHECK_EVERY = 30 * 60e3, HR = 3600e3;
-live.detail = "kyiv_city"; live.history = null; live.historyError = null; live.check = null; live.checkError = null;
-const $ = id => document.getElementById(id);
-const kyivDT = t => new Date(t).toLocaleString("en-GB", {timeZone: "Europe/Kyiv", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"});
-const signed = (v, d = 3) => v === null || v === undefined ? "n/a" : (v > 0 ? "+" : "") + v.toFixed(d);
-const nm = u => D.units[u] ? D.units[u].name : u;
-function underSince(u, tau) {
+
+// ---------- the live forecast and which model it comes from (plans/M13.md §1) ----------
+const live = {payload: null, error: null, sel: null, h: 1, history: null, historyError: null, check: null, checkError: null, chk: null};
+try { const s = JSON.parse(localStorage.getItem("aaf-view") || "{}"); if (HZ.includes(s.h)) live.h = s.h; } catch (e) {}
+const saveView = () => { try { localStorage.setItem("aaf-view", JSON.stringify({h: live.h})); } catch (e) {} };
+const dDay = iso => new Date(iso).toLocaleDateString("en-GB", {timeZone: "UTC", day: "numeric", month: "short"});
+const dRange = ([a, b]) => `${dDay(a)}–${dDay(new Date(new Date(b).getTime() - 1).toISOString())} ${new Date(a).getUTCFullYear()}`;
+const NOT_YET = `available after the new model's test week (${dRange(D.dates.m12_test)}); switched on by hand, not before ${dDay(new Date(D.dates.earliest_activation_ms).toISOString())}`;
+// <model-view> pure function (also run under node by tests/test_site.py): which horizons and values the map may show
+function modelView(P, notYet = "available after the new model's test week") {
+  const F = P && P.forecast, S = F && F.m12_state;
+  const active = !!(S && S.active === true);
+  const v = {active, fatal: null, avail: {}, source: active ? "new" : "current"};
+  if (!F || (!active && !F.units)) { for (const H of [1, 3, 6, 12, 24]) v.avail[H] = {ok: false, reason: "no live forecast"}; v.unit = () => null; return v; }
+  if (active) {
+    if (!F.m12 || !F.m12.items) v.fatal = (S.error || "the new model did not produce a forecast");
+    for (const H of [1, 3, 6, 12, 24]) { const it = F.m12 && F.m12.items && F.m12.items[`any_h${H}`];
+      v.avail[H] = v.fatal ? {ok: false, reason: "new model unavailable"} : it && !it.error && it.units ? {ok: true} : {ok: false, reason: it && it.error ? `model error: ${it.error}` : "missing"}; }
+    v.unit = (u, H) => { if (!v.avail[H].ok) return null; const x = F.m12.items[`any_h${H}`].units[u]; return x ? {state: x.state, p: x.state === "forecast" ? x.p : null} : null; };
+  } else {
+    v.avail[1] = {ok: true};
+    for (const H of [3, 6, 12, 24]) v.avail[H] = {ok: false, reason: notYet};
+    v.unit = (u, H) => { if (H !== 1) return null; const x = F.units[u]; return x ? {state: x.state, p: x.state === "forecast" ? x.p : null} : null; };
+  }
+  return v;
+}
+// </model-view>
+const stale = (P, now) => !P || !P.status || !P.forecast || P.status.ok === false || now - P.forecast.tau > STALE_AFTER;
+function underSince(u, tau, airRaid = false) {
   const U = live.history && live.history.units && live.history.units[u];
-  // capped intervals are clipped at the history's "now": one reaching it is still running (history may be older than tau)
-  const iv = U && U.capped.find(([a, b]) => a <= tau && (tau < b || b >= live.history.now));
+  const list = U ? (airRaid ? U.capped_air_raid || [] : U.capped) : [];
+  const iv = list.find(([a, b]) => a <= tau && (tau < b || b >= live.history.now));
   return iv ? iv[0] : null;
 }
-function neighboursNow(u, F) {
-  const nb = D.neighbours[u] || [], X = n => F && F.units[n];
-  return {all: nb, capped: nb.filter(n => X(n) && X(n).state === "alert_running"),
-          standing: nb.filter(n => X(n) && X(n).physical_alert && X(n).state === "forecast")};
+// the alert state shown next to a chance must come from the same alerts that model forecasts (D-045 when active)
+function alertNow(u, F, V) {
+  if (V.active) { const x = V.unit(u, 1); const on = !!x && x.state === "alert_running";
+    const U = live.history && live.history.units && live.history.units[u];
+    const n24 = U && U.onsets_air_raid ? U.onsets_air_raid.filter(t => t > F.tau - 24 * HR && t <= F.tau).length : null;
+    return {on, since: on ? underSince(u, F.tau, true) : null, n24}; }
+  const m8 = F.units[u], on = !!m8 && m8.state === "alert_running";
+  return {on, since: on ? underSince(u, F.tau) : null, n24: m8 && m8.alerts_last_24h !== undefined ? m8.alerts_last_24h : null};
 }
-function stripLegend() {
-  $("strip-legend").innerHTML = `<span><span class="sw" style="background:var(--s1)"></span>Forecast (saved each hour)</span><span><svg width="16" height="10" aria-hidden="true"><path d="M0 5h16" stroke="var(--s2)" stroke-width="2" stroke-dasharray="4 3"/></svg>Two-week rule</span>`
-    + `<span><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4" fill="var(--alert)"/></svg>A new alert started</span>`
-    + `<span><span class="sw" style="background:var(--band-alert)"></span>Alert listed (any age)</span><span><span class="sw" style="background:color-mix(in srgb, var(--alert) 35%, var(--panel))"></span>Under alert (first 24 h): no forecast by design</span>`
-    + `<span><span class="sw" style="background:var(--band-gap)"></span>No saved forecast / data gap</span><span><svg width="14" height="12" aria-hidden="true"><rect width="14" height="12" fill="url(#strip-nd)" stroke="var(--rule)"/></svg>No confirmed alert data</span>`;
+const hzText = H => H === 1 ? "the next hour" : `the next ${H} hours`;
+const stateText = s => s === "alert_running" ? "under alert now" : s === "data_gap" ? "data gap" : s === "level_active" ? "alert of that kind running" : "no forecast";
+function kindOf(u) { const K = live.payload && live.payload.forecast && live.payload.forecast.kind;
+  return K && K.error ? {status: "error"} : K && K.units ? K.units[u] : null; }
+function tipHtml(u) {
+  const P = live.payload, F = P && P.forecast, V = modelView(P, NOT_YET);
+  if (!F) return `<b>${esc(nm(u))}</b><br>No live forecast loaded.`;
+  const x = V.unit(u, live.h);
+  const main = !V.avail[live.h].ok ? `${live.h} h: ${esc(V.avail[live.h].reason)}` : !x ? "no forecast" : x.state === "forecast" ? `<b>${pct(x.p)}</b> chance of a new alert in ${hzText(live.h)}` : esc(stateText(x.state)) + " — no forecast";
+  const A = alertNow(u, F, V);
+  return `<b>${esc(nm(u))}</b><br>${main}${A.since !== null ? `<br>Under alert since ${kyiv(A.since)} Kyiv` : ""}<br>If it comes: ${esc(kindWords(kindOf(u)))} · <i>in testing</i>`;
 }
+function cardHtml(u) {
+  const P = live.payload, F = P && P.forecast, V = modelView(P, NOT_YET);
+  if (!F) return `<div class="eyebrow">${esc(nm(u))}</div><p class="muted">No live forecast loaded.</p>`;
+  const x = V.unit(u, live.h), H = live.h;
+  const until = kyiv(F.tau + H * HR);
+  const head = !V.avail[H].ok ? `<div class="big state" style="color:var(--ink-3)">${H} h</div><p class="muted small">${esc(V.avail[H].reason)}.</p>`
+    : !x ? `<div class="big state" style="color:var(--ink-3)">–</div><p class="muted small">No forecast for this oblast.</p>`
+    : x.state === "forecast" ? `<div class="big">${pct(x.p)}</div><p class="muted small">chance that a new air-raid alert starts in ${hzText(H)} (before ${until} Kyiv time)</p>`
+    : x.state === "alert_running" ? `<div class="big state" style="color:var(--alert)">Under alert</div><p class="muted small">An alert is running, so there is no forecast of a new one until it ends.</p>`
+    : `<div class="big state" style="color:var(--ink-3)">Data gap</div><p class="muted small">The live feed missed some minutes; no forecast is shown.</p>`;
+  const ladder = HZ.map(h => { const y = V.unit(u, h), ok = V.avail[h].ok && y && y.state === "forecast";
+    return `<div class="rung${h === H ? " sel" : ""}" title="${esc(V.avail[h].ok ? (y ? (y.state === "forecast" ? pct(y.p) : stateText(y.state)) : "no forecast") : V.avail[h].reason)}"><div class="bar${V.avail[h].ok ? "" : " off"}">${ok ? `<i style="height:${Math.round(100 * y.p)}%"></i>` : ""}</div><b>${ok ? pct(y.p) : "–"}</b><span class="muted">${h} h</span></div>`; }).join("");
+  const A = alertNow(u, F, V), m8 = F.units[u];
+  const typedLine = m8 && m8.typed && F.typed ? `<div class="typed"><div class="eyebrow">Next hour by kind <span class="tag">in training</span></div><dl><dt>Yellow (drones)</dt><dd>${typedValue("yellow", m8.typed.yellow)}</dd><dt>Red (missiles)</dt><dd>${typedValue("red", m8.typed.red)}</dd></dl></div>` : "";
+  return `<div class="eyebrow">${esc(nm(u))}</div>${head}<div class="ladder" aria-label="Chance of a new alert by horizon">${ladder}</div>
+    <dl><dt>Now</dt><dd>${A.since !== null ? `under alert since ${kyiv(A.since)}` : A.on ? "under alert" : "no alert"}</dd>
+    <dt>Alerts started, last 24 h${V.active ? " (air-raid)" : ""}</dt><dd>${A.n24 === null || A.n24 === undefined ? "n/a" : Number(A.n24)}</dd></dl>
+    <p class="kindline">If it comes: <b>${esc(kindWords(kindOf(u)))}</b> <span class="tag test">in testing</span> · <a href="#kind">what kind of alert?</a></p>${typedLine}`;
+}
+function drawHz() {
+  const V = modelView(live.payload, NOT_YET), seg = $("seg-hz");
+  if (!V.avail[live.h] || !V.avail[live.h].ok) live.h = 1;
+  seg.innerHTML = HZ.map(H => `<button type="button" data-h="${H}" aria-pressed="${H === live.h}"${V.avail[H] && V.avail[H].ok ? "" : ` disabled title="${esc(V.avail[H] ? V.avail[H].reason : "")}"`}>${H} h</button>`).join("");
+  seg.querySelectorAll("button").forEach(b => b.onclick = () => { live.h = +b.dataset.h; saveView(); drawLive(); });
+  const off = HZ.filter(H => !V.avail[H].ok);
+  $("hz-note").hidden = !off.length || !!V.fatal;
+  $("hz-note").textContent = off.length ? (V.active ? `Not available now: ${off.map(H => `${H} h (${V.avail[H].reason})`).join(", ")}.` : `3, 6, 12 and 24 hours: ${NOT_YET}. Until then the map shows the current 1-hour model.`) : "";
+  $("model-error").hidden = !V.fatal; $("model-error").textContent = V.fatal ? `The new model is unavailable right now (${V.fatal}). No chances are shown rather than an older model's.` : "";
+}
+function drawLive() {
+  const P = live.payload, F = P && P.forecast, now = Date.now(), isStale = stale(P, now), bar = $("live-status");
+  if (!F) { bar.className = "livebar " + (live.error ? "bad" : "wait");
+    bar.innerHTML = live.error ? `<span><span class="pulse"></span>Live forecast unavailable (${esc(live.error)}). Retrying every minute.</span>` : `<span><span class="pulse"></span>No live forecast yet. Retrying every minute.</span>`; }
+  else if (P.status && P.status.ok === false) { bar.className = "livebar bad"; bar.innerHTML = `<span><span class="pulse"></span>The latest update failed; showing the forecast made at ${kyiv(F.tau)} Kyiv time.</span>`; }
+  else if (isStale) { bar.className = "livebar bad"; bar.innerHTML = `<span><span class="pulse"></span>Out of date: made at ${kyiv(F.tau)} Kyiv time (${ago(now - F.tau)}). Do not rely on it.</span>`; }
+  else { bar.className = "livebar ok"; bar.innerHTML = `<span><span class="pulse"></span>Forecast made at <b>${kyiv(F.tau)}</b> Kyiv time</span><span>updated ${ago(now - F.tau)}</span>`; }
+  drawHz();
+  const V = modelView(P, NOT_YET), H = live.h, svg = $("live-map");
+  svg.classList.toggle("is-stale", !!F && isStale);
+  const X = u => V.fatal ? null : V.unit(u, H);
+  geoMap(svg, {
+    fill: u => { const x = X(u); return !x ? "var(--tile-empty)" : x.state === "forecast" ? pFill(x.p) : x.state === "alert_running" ? "var(--alert-soft)" : "var(--tile-empty)"; },
+    overlay: u => { const x = X(u); return !x ? null : x.state === "alert_running" ? "alert" : x.state === "data_gap" ? "dots" : null; },
+    value: u => { const x = X(u); return !x ? (V.fatal ? "" : "–") : x.state === "forecast" ? pct(x.p) : x.state === "alert_running" ? "alert" : "gap"; },
+    tip: u => tipHtml(u), sel: live.sel,
+    onPick: u => { live.sel = u; drawLive(); drawStrip(); }});
+  $("live-legend").innerHTML = PLABEL.map((l, i) => `<span><span class="sw" style="background:color-mix(in oklab, var(--s6) ${PMIX[i]}%, var(--panel))"></span>${l}</span>`).join("")
+    + `<span>${swatch("var(--alert-soft)", "live-map-alert")}under alert (no forecast)</span><span>${swatch("var(--tile-empty)", "live-map-dots")}data gap</span>`;
+  if (live.sel) $("card").innerHTML = cardHtml(live.sel);
+}
+async function pollLive() {
+  try { const r = await fetch("/api/forecast", {cache: "no-store"}); if (!r.ok) throw new Error("HTTP " + r.status); live.payload = await r.json(); live.error = null; }
+  catch (e) { live.error = e.message || "network error"; }
+  drawLive(); drawKind();
+}
+
+// ---------- 7-day strip: actual alerts vs our saved 1-hour forecast, segment by model (M11 + M13 §1) ----------
 function drawStrip() {
-  const svg = $("strip"), u = live.detail, Hs = live.history, note = $("strip-note");
+  const u = live.sel, Hs = live.history, svg = $("strip"), note = $("strip-note");
+  $("strip-panel").hidden = !u; if (!u) return;
+  $("strip-title").textContent = `${nm(u)}: the last 7 days`;
   svg.innerHTML = "";
-  if (!Hs || !Hs.units || !Hs.units[u]) { note.textContent = live.historyError ? `The last 7 days are unavailable: the live service did not answer (${live.historyError}).` : "Loading the last 7 days…"; return; }
-  const W = 900, Hh = 220, l = 44, r = 12, t = 26, b = 30; svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
+  if (!Hs || !Hs.units || !Hs.units[u]) { note.textContent = live.historyError ? `Unavailable (${live.historyError}).` : "Loading…"; return; }
+  const W = 900, Hh = 200, l = 44, r = 12, t = 24, b = 30; svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
   const t1 = Hs.now, t0 = t1 - 7 * 24 * HR, x = v => l + (Math.min(t1, Math.max(t0, v)) - t0) / (t1 - t0) * (W - l - r);
-  const U = Hs.units[u], defs = el("defs", {}, svg);
-  const pat = el("pattern", {id: "strip-nd", width: 6, height: 6, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)"}, defs);
-  el("line", {x1: 0, y1: 0, x2: 0, y2: 6, stroke: "var(--ink-3)", "stroke-width": 1.4, "stroke-opacity": 0.6}, pat);
+  const U = Hs.units[u];
   const band = (a, bb, fill, y0 = t, y1 = Hh - b) => { if (bb > a) el("rect", {x: x(a), y: y0, width: Math.max(0.5, x(bb) - x(a)), height: y1 - y0, fill}, svg); };
-  let cur = t0; for (const [a, bb] of U.coverage) { if (a > cur) band(cur, a, "url(#strip-nd)"); cur = Math.max(cur, bb); } if (cur < t1) band(cur, t1, "url(#strip-nd)");
-  for (const [a, bb] of U.physical) band(a, bb, "var(--band-alert)");
-  for (const [a, bb] of U.open) band(a, bb, "var(--band-alert)");
-  for (const [a, bb] of U.capped) band(a, bb, "color-mix(in srgb, var(--alert) 35%, var(--panel))");
-  const byHour = new Map(Hs.snapshots.map(s => [s.hour, s]));
+  for (const [a, bb] of U.capped) band(a, bb, "color-mix(in srgb, var(--alert) 30%, var(--panel))");
+  const m8 = new Map((Hs.snapshots || []).map(s => [s.hour, s])), v2 = new Map((Hs.v2 || []).map(s => [s.hour, s]));
   const hours = []; for (let h = Math.ceil(t0 / HR) * HR; h + HR <= t1; h += HR) hours.push(h);
-  let maxP = 0.1; for (const h of hours) { const s = byHour.get(h), e = s && s.units[u]; if (e && e[1] === "forecast") maxP = Math.max(maxP, e[0], e[2] || 0); }
-  maxP = Math.min(1, Math.ceil(maxP * 10) / 10);
+  const val = h => { const s2 = v2.get(h), e2 = s2 && s2.units[u]; if (s2) return e2 && typeof e2[1] === "number" ? {p: e2[1], m: "new"} : null;   // never fall back to the old model
+    const s = m8.get(h), e = s && s.units[u]; return e && e[1] === "forecast" ? {p: e[0], m: "current"} : null; };
+  let maxP = 0.1; for (const h of hours) { const v = val(h); if (v) maxP = Math.max(maxP, v.p); } maxP = Math.min(1, Math.ceil(maxP * 10) / 10);
   const y = v => Hh - b - v / maxP * (Hh - t - b);
   niceTicks(0, maxP, 4).forEach(v => { el("line", {x1: l, x2: W - r, y1: y(v), y2: y(v), stroke: "var(--grid)"}, svg); const tx = el("text", {x: l - 6, y: y(v) + 4, "text-anchor": "end"}, svg); tx.textContent = (100 * v).toFixed(0) + "%"; });
-  let missing = 0, forecastH = 0;
-  for (const h of hours) { const s = byHour.get(h), e = s && s.units[u];
-    if (!e) { missing++; band(h, h + HR, "var(--band-gap)", y(maxP * 0.12), Hh - b); }
-    else if (e[1] === "data_gap") band(h, h + HR, "var(--band-gap)", y(maxP * 0.12), Hh - b);
-    else if (e[1] === "forecast") forecastH++; }
   for (let k = 0; k <= 7; k++) { const p = new Intl.DateTimeFormat("en-GB", {timeZone: "Europe/Kyiv", year: "numeric", month: "numeric", day: "numeric"}).formatToParts(new Date(t1 - k * 24 * HR)).reduce((o, q) => (o[q.type] = +q.value, o), {});
     const m = kyivLocalToUtc(p.year, p.month, p.day, 0); if (m < t0) continue;
     el("line", {x1: x(m), x2: x(m), y1: t, y2: Hh - b, stroke: "var(--grid)"}, svg);
-    if (x(m) < W - r - 60) { const tx = el("text", {x: x(m) + 3, y: Hh - b + 16}, svg); tx.textContent = new Date(m).toLocaleDateString("en-GB", {weekday: "short", day: "numeric", month: "short", timeZone: "Europe/Kyiv"}); } }
-  [[2, "var(--s2)", "4 3"], [0, "var(--s1)", null]].forEach(([k, c, dash]) => { let d = "", pen = false, last = null;
-    for (const h of hours) { const s = byHour.get(h), e = s && s.units[u]; const v = e && e[1] === "forecast" ? e[k] : null;
-      if (v === null || v === undefined) { pen = false; continue; }
-      d += (pen && last === h - HR ? "L" : "M") + x(h).toFixed(1) + "," + y(v).toFixed(1) + "L" + x(h + HR).toFixed(1) + "," + y(v).toFixed(1); pen = true; last = h; }
-    el("path", {d, fill: "none", stroke: c, "stroke-width": 2, "stroke-dasharray": dash, "stroke-linejoin": "round"}, svg); });
-  const on7 = U.onsets.filter(o => o > t0);
-  on7.forEach(o => el("circle", {cx: x(o), cy: t - 10, r: 4, fill: "var(--alert)", stroke: "var(--panel)", "stroke-width": 1.5}, svg));
-  const inside = (list, a, bb) => list.some(([p, q]) => p < bb && q > a);
-  for (const h of hours) { const s = byHour.get(h), e = s && s.units[u];
-    const cov = U.coverage.some(([a, bb]) => a <= h && bb >= h + HR), n = U.onsets.filter(o => o > h && o <= h + HR).length;
-    const st = !e ? "no forecast was saved for this hour (grey, not 0%)" : e[1] === "forecast" ? `forecast <b>${pct(e[0])}</b>, two-week rule ${e[2] === null ? "n/a" : pct(e[2])}` : e[1] === "alert_running" ? "under alert: no forecast by design" : "data gap: no forecast";
-    const r1 = el("rect", {x: x(h), y: t - 16, width: Math.max(1, x(h + HR) - x(h)), height: Hh - b - t + 16, fill: "transparent"}, svg);
-    hover(r1, () => `<b>${esc(nm(u))}</b> · ${kyivDT(h)}–${kyiv(h + HR)} Kyiv<br>${st}${s && (s.late || s.legacy) ? `<br><i>${s.late ? "saved late" : "saved under the old archive rule"}</i>` : ""}<br>New alerts in this hour: ${cov ? n : "no confirmed data"}${inside(U.capped, h, h + HR) ? "<br>Under alert (first 24 h) during this hour" : inside(U.physical, h, h + HR) || inside(U.open, h, h + HR) ? "<br>An alert was listed (older than 24 h or partly)" : ""}`);
-    r1.removeAttribute("tabindex"); }
-  note.textContent = `${nm(u)}: ${on7.length} new alerts started in the last 7 days; ${forecastH} of ${hours.length} hours had a saved forecast${missing ? `, ${missing} hours have no saved forecast (the archive started recently or runs were missed)` : ""}. Times are Kyiv time.`;
-}
-function drawPattern() {
-  const box = $("pattern"), u = live.detail, Hs = live.history;
-  if (!Hs || !Hs.units || !Hs.units[u]) { box.innerHTML = ""; $("pattern-note").textContent = ""; return; }
-  const U = Hs.units[u], days = recentPattern(U.onsets, U.coverage, Hs.now, 14);
-  const blk = ["00", "03", "06", "09", "12", "15", "18", "21"];
-  let html = `<div class="ph"></div>` + blk.map(b => `<div class="ph" role="columnheader">${b}</div>`).join("");
-  const cells = [];
-  [...days].reverse().forEach(d => {
-    const lab = new Date(d.date + "T12:00:00Z").toLocaleDateString("en-GB", {day: "numeric", month: "short", timeZone: "UTC"});
-    html += `<div class="pd" role="rowheader">${lab}${d.partial ? " *" : ""}</div>`;
-    d.blocks.forEach((b, i) => { const id = `pc-${d.date}-${i}`; cells.push([id, d, b, i]);
-      const cls = b.status === "no_data" ? "pc nd" : b.status === "future" || b.status === "in_progress" ? "pc fu" : "pc";
-      const bg = b.status === "ok" && b.count > 0 ? ` style="background:color-mix(in oklab, var(--s6) ${Math.round(22 + 18 * Math.min(4, b.count))}%, var(--panel))"` : "";
-      const lbl = `${lab} ${blk[i]}:00–${i === 7 ? "24" : blk[i + 1]}:00 Kyiv: ${b.status === "ok" ? b.count + " new alerts" : b.status === "future" ? "not yet" : b.status === "in_progress" ? "in progress" : "no data"}`;
-      html += `<div class="${cls}" id="${id}" role="gridcell" aria-label="${esc(lbl)}"${bg}>${b.status === "ok" ? b.count : b.status === "no_data" ? "–" : b.status === "in_progress" ? "…" : ""}</div>`; }); });
-  box.innerHTML = html;
-  cells.forEach(([id, d, b, i]) => { const c = document.getElementById(id);
-    const txt = `<b>${esc(nm(u))}</b> · ${d.date}, ${blk[i]}:00–${i === 7 ? "24" : blk[i + 1]}:00 Kyiv${b.hours !== 3 ? `<br>${b.hours} real hours (clocks changed)` : ""}<br>${b.status === "ok" ? `${b.count} new alert${b.count === 1 ? "" : "s"} started` : b.status === "future" ? "not yet" : b.status === "in_progress" ? "in progress (not counted yet)" : "no confirmed data for the whole block"}`;
-    c.addEventListener("mousemove", ev => showTip(ev, txt)); c.addEventListener("mouseleave", hideTip); });
-  const ok = days.flatMap(d => d.blocks).filter(b => b.status === "ok"), nd = days.flatMap(d => d.blocks).filter(b => b.status === "no_data").length;
-  $("pattern-note").textContent = `${ok.reduce((a, b) => a + b.count, 0)} new alerts in ${ok.length} fully covered blocks; ${nd} blocks without confirmed data. * = partial day. Descriptive only: it shows what happened, it is not a forecast.`;
-}
-function drawDetail() {
-  $("ld-title").textContent = `${nm(live.detail)}: the last days`;
-  $("ld-hint").textContent = live.sel ? "" : "Showing Kyiv City. Pick an oblast on the map (click, tap, or Tab + Enter).";
-  drawStrip(); drawPattern();
+    if (x(m) < W - r - 60) { const tx = el("text", {x: x(m) + 3, y: Hh - b + 16}, svg); tx.textContent = new Date(m).toLocaleDateString("en-GB", {weekday: "short", day: "numeric", timeZone: "Europe/Kyiv"}); } }
+  for (const mdl of ["current", "new"]) { let d = "", last = null;
+    for (const h of hours) { const v = val(h); if (!v || v.m !== mdl) { last = null; continue; }
+      d += (last === h - HR ? "L" : "M") + x(h).toFixed(1) + "," + y(v.p).toFixed(1) + "L" + x(h + HR).toFixed(1) + "," + y(v.p).toFixed(1); last = h; }
+    el("path", {d, fill: "none", stroke: mdl === "new" ? "var(--s6)" : "var(--s1)", "stroke-width": 2, "stroke-linejoin": "round"}, svg); }
+  const v2From = Math.min(...[...v2.keys()].concat([Infinity]));
+  const dots = [...U.onsets.filter(o => o > t0 && o < v2From), ...(U.onsets_air_raid || []).filter(o => o >= v2From && o > t0)];
+  dots.forEach(o => el("circle", {cx: x(o), cy: t - 10, r: 4, fill: "var(--alert)", stroke: "var(--panel)", "stroke-width": 1.5}, svg));
+  const isActive = modelView(live.payload, NOT_YET).active;
+  $("strip-legend").innerHTML = `<span><span class="sw" style="background:var(--s1)"></span>${isActive ? "Previous" : "Current"} model (official data, all alert types)</span>`
+    + (v2.size ? `<span><span class="sw" style="background:var(--s6)"></span>New model (alerts.in.ua, air-raid only)</span>` : "")
+    + `<span><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4" fill="var(--alert)"/></svg>a new alert started</span>`
+    + `<span><span class="sw" style="background:color-mix(in srgb, var(--alert) 30%, var(--panel))"></span>under alert (no forecast)</span>`;
+  note.textContent = `${dots.length} new alerts started in the last 7 days. The line is the saved chance for the next hour. Gaps = no saved forecast. Kyiv time.`;
 }
 async function pollHistory() {
-  try { const r = await fetch(HISTORY_URL, {cache: "no-store"}); if (!r.ok) throw new Error("HTTP " + r.status); live.history = await r.json(); live.historyError = null; }
+  try { const r = await fetch("/api/history", {cache: "no-store"}); if (!r.ok) throw new Error("HTTP " + r.status); live.history = await r.json(); live.historyError = null; }
   catch (e) { live.historyError = e.message || "network error"; }
-  drawDetail(); if (live.sel) $("live-card").innerHTML = liveCard(live.sel, live.payload && live.payload.forecast);
+  drawStrip(); if (live.sel) $("card").innerHTML = cardHtml(live.sel);
 }
 
-const EXCL = {legacy: "Saved before the check started (old archive rule)", late: "Saved 15 minutes or more into the hour (missed runs)",
-  unsettled: "Too recent: the hour is not over plus 3 hours", not_forecast: "No forecast at the time (alert running or data gap)",
-  rejected_at_issue: "A broken feed record was flagged at the time", coverage_hole: "Alert history not confirmed from 24 h before to 1 h after",
-  rejected_after_issue: "A broken feed record for the oblast was found later", reconciled_under_alert: "Turned out to be under alert at that moment"};
+// ---------- reliability chart (forecast check, original study, kind rule) ----------
+function relChart(svg, series, xlab, ylab) {
+  svg.innerHTML = ""; const W = 460, Hh = 340, l = 46, r = 14, t = 10, b = 40; svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
+  const pts = series.flatMap(s => s.rows.filter(q => q.n > 0));
+  if (!pts.length) { const tx = el("text", {x: W / 2, y: Hh / 2, "text-anchor": "middle"}, svg); tx.textContent = "No scored hours yet"; return; }
+  const mx = Math.min(1, Math.max(0.2, ...pts.map(q => Math.max(q.p, q.o))) * 1.08), x = v => l + v / mx * (W - l - r), y = v => Hh - b - v / mx * (Hh - t - b);
+  niceTicks(0, mx, 5).forEach(v => { el("line", {x1: x(v), x2: x(v), y1: t, y2: Hh - b, stroke: "var(--grid)"}, svg); el("line", {x1: l, x2: W - r, y1: y(v), y2: y(v), stroke: "var(--grid)"}, svg);
+    const a = el("text", {x: x(v), y: Hh - b + 16, "text-anchor": "middle"}, svg); a.textContent = Math.round(100 * v) + "%"; const c = el("text", {x: l - 6, y: y(v) + 4, "text-anchor": "end"}, svg); c.textContent = Math.round(100 * v) + "%"; });
+  el("line", {x1: x(0), y1: y(0), x2: x(mx), y2: y(mx), stroke: "var(--zero)", "stroke-dasharray": "4 4"}, svg);
+  const ax = el("text", {x: (l + W - r) / 2, y: Hh - 6, "text-anchor": "middle"}, svg); ax.textContent = xlab;
+  const ay = el("text", {x: 12, y: (t + Hh - b) / 2, "text-anchor": "middle", transform: `rotate(-90 12 ${(t + Hh - b) / 2})`}, svg); ay.textContent = ylab;
+  const mxn = Math.max(...pts.map(q => q.n));
+  for (const s of series) { const R = s.rows.filter(q => q.n > 0);
+    el("polyline", {points: R.map(q => `${x(q.p)},${y(q.o)}`).join(" "), fill: "none", stroke: s.color, "stroke-width": 2}, svg);
+    R.forEach(q => { const c = el("circle", {cx: x(q.p), cy: y(q.o), r: 4 + 7 * Math.sqrt(q.n / mxn), fill: s.color, "fill-opacity": 0.85, stroke: "var(--panel)", "stroke-width": 2}, svg);
+      hover(c, `<b>${esc(s.name)}</b><br>Said ${pct(q.p)} on average (${fi(q.n)} cases)<br>Happened ${pct(q.o)}`); }); }
+}
+
+// ---------- forecast check (plans/M13.md §1.3) ----------
+function checkSeries() {
+  const C = live.check || {}, V = modelView(live.payload, NOT_YET), out = [];
+  live.checkProblems = [];
+  if (C.m8 && C.m8.ok === false) live.checkProblems.push(`the 1-hour check failed at ${kyivDT(C.m8.computed_at)} (${C.m8.error})`);
+  if (C.v2 && C.v2.status === "error") live.checkProblems.push(`the new model's check failed (${C.v2.error})`);
+  if (C.m8 && C.m8.ok !== false) out.push({key: "m8", label: V.active ? "1 h · previous model" : "1 h · current model", blob: C.m8});
+  if (C.v2 && C.v2.status === "active") for (const s of C.v2.series || []) if (s.status === "active" && /^any_h/.test(s.key)) out.push({key: s.key, label: `${s.horizon_hours} h · new model`, blob: s});
+  return out;
+}
 function drawCheck() {
-  const C = live.check, box = $("check-status");
-  ["ch-check-days", "ch-check-rel"].forEach(id => $(id).innerHTML = "");
-  $("tbl-check").innerHTML = ""; $("tbl-check-excl").innerHTML = "";
-  if (!C) { box.textContent = live.checkError ? `The live check is unavailable: the live service did not answer (${live.checkError}).` : "Loading the live check…"; return; }
-  if (C.ok === false) { box.textContent = `The last live-check computation failed at ${kyivDT(C.computed_at)} Kyiv time: ${C.error}. It is retried every hour.`; return; }
-  const o = C.overall;
-  box.innerHTML = `<b>${C.days_scored} day${C.days_scored === 1 ? "" : "s"} scored</b>: ${fi(o.rows)} oblast-hours, ${fi(o.positives)} with a new alert${o.base_rate === null ? "" : ` (${(100 * o.base_rate).toFixed(1)}%)`}. Pooled Brier skill against the two-week rule: <b>${o.bss === null ? "n/a (" + esc(o.bss_reason) + ")" : signed(o.bss)}</b>${o.brier_p === null ? "" : ` (Brier ${o.brier_p.toFixed(4)} vs ${o.brier_recent_rate.toFixed(4)})`}.`
-    + (o.low_n ? ` <b>Too few hours to judge</b> (fewer than ${C.rules.low_n.rows} hours or ${C.rules.low_n.positives} new alerts): read it as a running log, not a result.` : "")
-    + ` Cumulative since ${C.first_day || "launch"} (UTC)${C.frozen_days ? `, ${C.frozen_days} older day${C.frozen_days === 1 ? "" : "s"} kept as frozen daily totals` : ""}. Computed ${kyivDT(C.computed_at)} Kyiv time from ${fi(C.snapshots)} saved hours. This needs weeks of uptime before it means much.`;
-  // per-day bars + cumulative line
-  const days = C.days.filter(d => d.rows > 0), svg = $("ch-check-days");
-  if (days.length) { const W = 520, Hh = 240, l = 46, r = 12, t = 12, b = 34; svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
-    const vals = days.flatMap(d => [d.bss, d.cumulative_bss]).filter(v => v !== null);
-    let lo = Math.min(-0.1, ...vals), hi = Math.max(0.1, ...vals); const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
-    const y = v => t + (hi - v) / (hi - lo) * (Hh - t - b), bw = (W - l - r) / days.length, xc = i => l + bw * (i + 0.5);
-    niceTicks(lo, hi, 5).forEach(v => { el("line", {x1: l, x2: W - r, y1: y(v), y2: y(v), stroke: "var(--grid)"}, svg); const tx = el("text", {x: l - 6, y: y(v) + 4, "text-anchor": "end"}, svg); tx.textContent = v.toFixed(2); });
-    el("line", {x1: l, x2: W - r, y1: y(0), y2: y(0), stroke: "var(--zero)", "stroke-width": 1.5}, svg);
-    days.forEach((d, i) => { if (d.bss !== null) { const rc = el("rect", {x: xc(i) - Math.min(18, bw * 0.35), y: Math.min(y(0), y(d.bss)), width: Math.min(36, bw * 0.7), height: Math.max(1.5, Math.abs(y(d.bss) - y(0))), rx: 3, fill: "var(--s6)", "fill-opacity": 0.8}, svg);
-        hover(rc, `<b>${d.day} (UTC)</b>${d.frozen ? " · frozen" : ""}<br>Skill ${signed(d.bss, 4)} on ${fi(d.rows)} hours, ${d.positives} new alerts<br>Cumulative ${signed(d.cumulative_bss, 4)}${d.low_n ? "<br><i>few hours</i>" : ""}`); }
-      else { const tx = el("text", {x: xc(i), y: y(0) - 6, "text-anchor": "middle"}, svg); tx.textContent = "n/a"; }
-      if (days.length <= 14 || i % Math.ceil(days.length / 10) === 0) { const tx = el("text", {x: xc(i), y: Hh - b + 16, "text-anchor": "middle"}, svg); tx.textContent = d.day.slice(5); } });
-    const pts = days.map((d, i) => d.cumulative_bss === null ? null : `${xc(i)},${y(d.cumulative_bss)}`).filter(Boolean);
-    if (pts.length) el("polyline", {points: pts.join(" "), fill: "none", stroke: "var(--ink)", "stroke-width": 2}, svg); }
-  // reliability
-  const rs = C.reliability.filter(q => q.rows > 0), rv = $("ch-check-rel");
-  if (rs.length) { const W = 460, Hh = 360, l = 46, r = 14, t = 10, b = 40; rv.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
-    const mx = Math.min(1, Math.max(0.2, ...rs.map(q => Math.max(q.mean_p, q.observed))) * 1.08), x = v => l + v / mx * (W - l - r), y = v => Hh - b - v / mx * (Hh - t - b);
-    niceTicks(0, mx, 5).forEach(v => { el("line", {x1: x(v), x2: x(v), y1: t, y2: Hh - b, stroke: "var(--grid)"}, rv); el("line", {x1: l, x2: W - r, y1: y(v), y2: y(v), stroke: "var(--grid)"}, rv); const a = el("text", {x: x(v), y: Hh - b + 16, "text-anchor": "middle"}, rv); a.textContent = v.toFixed(1); const c = el("text", {x: l - 6, y: y(v) + 4, "text-anchor": "end"}, rv); c.textContent = v.toFixed(1); });
-    el("line", {x1: x(0), y1: y(0), x2: x(mx), y2: y(mx), stroke: "var(--zero)", "stroke-dasharray": "4 4"}, rv);
-    const ax = el("text", {x: (l + W - r) / 2, y: Hh - 6, "text-anchor": "middle"}, rv); ax.textContent = "mean saved forecast";
-    const ay = el("text", {x: 12, y: (t + Hh - b) / 2, "text-anchor": "middle", transform: `rotate(-90 12 ${(t + Hh - b) / 2})`}, rv); ay.textContent = "share with a new alert";
-    const mxn = Math.max(...rs.map(q => q.rows));
-    rs.forEach(q => { const c = el("circle", {cx: x(q.mean_p), cy: y(q.observed), r: 4 + 8 * Math.sqrt(q.rows / mxn), fill: "var(--s6)", "fill-opacity": 0.85, stroke: "var(--panel)", "stroke-width": 2}, rv);
-      hover(c, `Bin ${q.lo.toFixed(1)}–${q.hi.toFixed(1)}: ${fi(q.rows)} hours<br>Mean forecast ${q.mean_p.toFixed(3)}<br>Observed ${q.observed.toFixed(3)}`); }); }
-  // per-oblast table and exclusions
-  let tb = "<thead><tr><th scope=col>Oblast</th><th scope=col>Group</th><th scope=col>Hours</th><th scope=col>New alerts</th><th scope=col>Brier, model</th><th scope=col>Brier, two-week rule</th><th scope=col>Skill</th></tr></thead><tbody>";
-  Object.keys(C.units).sort((a, b) => nm(a).localeCompare(nm(b))).forEach(u => { const c = C.units[u];
-    tb += `<tr><td class="name">${esc(nm(u))}${c.low_n ? '<span class="flag">low-n</span>' : ""}</td><td class="grp">${GROUPS[D.units[u].group] || ""}</td><td>${fi(c.rows)}</td><td>${fi(c.positives)}</td><td>${c.brier_p === null ? "n/a" : c.brier_p.toFixed(4)}</td><td>${c.brier_recent_rate === null ? "n/a" : c.brier_recent_rate.toFixed(4)}</td><td>${c.bss === null ? "n/a" : signed(c.bss)}</td></tr>`; });
-  Object.entries(C.groups).forEach(([g, c]) => { tb += `<tr class="is-model"><td class="name">${GROUPS[g] || g}</td><td class="grp">group</td><td>${fi(c.rows)}</td><td>${fi(c.positives)}</td><td>${c.brier_p === null ? "n/a" : c.brier_p.toFixed(4)}</td><td>${c.brier_recent_rate === null ? "n/a" : c.brier_recent_rate.toFixed(4)}</td><td>${c.bss === null ? "n/a" : signed(c.bss)}</td></tr>`; });
-  $("tbl-check").innerHTML = tb + "</tbody>";
-  $("check-units-note").textContent = "Skill is pooled within each row (1 − sum of model losses ÷ sum of rule losses). Oblasts with few hours swing a lot.";
-  $("tbl-check-excl").innerHTML = "<thead><tr><th scope=col>Reason (first that applies)</th><th scope=col>Oblast-hours</th></tr></thead><tbody>" + Object.entries(C.excluded).map(([k, n]) => `<tr><td class="name" style="white-space:normal">${EXCL[k] || esc(k)}</td><td>${fi(n)}</td></tr>`).join("") + "</tbody>";
+  const S = checkSeries(), seg = $("seg-check");
+  if (!live.check) { $("check-headline").textContent = live.checkError ? `The forecast check is unavailable (${live.checkError}).` : "Loading…"; return; }
+  const probs = (live.checkProblems || []).length ? ` Problem: ${live.checkProblems.join("; ")}. It is retried every hour.` : "";
+  if (!S.length) { $("check-headline").textContent = `No scored series yet.${probs}`; seg.innerHTML = ""; $("check-note").textContent = "";
+    $("ch-check-rel").innerHTML = ""; $("ch-check-days").innerHTML = ""; return; }
+  if (!S.some(s => s.key === live.chk)) live.chk = S[S.length - 1].key;
+  seg.innerHTML = S.map(s => `<button type="button" data-k="${s.key}" aria-pressed="${s.key === live.chk}">${esc(s.label)}</button>`).join("");
+  seg.querySelectorAll("button").forEach(b => b.onclick = () => { live.chk = b.dataset.k; drawCheck(); });
+  const s = S.find(z => z.key === live.chk), B = s.blob, o = B.overall || {rows: 0, positives: 0, bss: null, bss_reason: "no summary"}, days = (B.days || []).filter(d => d.rows > 0);
+  $("check-headline").textContent = typeof o.bss !== "number" ? `Not enough scored hours yet (${o.bss_reason || "no rows"}).`
+    : `Last ${days.length} day${days.length === 1 ? "" : "s"}: our forecast was ${Math.abs(100 * o.bss).toFixed(1)}% ${o.bss >= 0 ? "more" : "less"} accurate than the simple two-week rule.`;
+  $("check-note").textContent = `${fi(o.rows)} oblast-hours scored, ${fi(o.positives)} with a new alert. Accuracy = Brier score, pooled over all hours.${o.low_n ? " Too few hours to judge yet: read it as a running log." : ""} Exploratory: live data, scored only after each hour's outcome is known.${probs}`;
+  relChart($("ch-check-rel"), [{name: s.label, color: "var(--s6)", rows: (B.reliability || []).map(q => ({p: q.mean_p, o: q.observed, n: q.rows}))}], "what we said", "how often an alert started");
+  const svg = $("ch-check-days"); svg.innerHTML = "";
+  if (!days.length) return;
+  const W = 520, Hh = 240, l = 46, r = 12, t = 12, b = 34; svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
+  const vals = days.flatMap(d => [d.bss, d.cumulative_bss]).filter(v => v !== null && v !== undefined);
+  let lo = Math.min(-0.1, ...vals), hi = Math.max(0.1, ...vals); const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+  const y = v => t + (hi - v) / (hi - lo) * (Hh - t - b), bw = (W - l - r) / days.length, xc = i => l + bw * (i + 0.5);
+  niceTicks(lo, hi, 5).forEach(v => { el("line", {x1: l, x2: W - r, y1: y(v), y2: y(v), stroke: "var(--grid)"}, svg); const tx = el("text", {x: l - 6, y: y(v) + 4, "text-anchor": "end"}, svg); tx.textContent = v.toFixed(2); });
+  el("line", {x1: l, x2: W - r, y1: y(0), y2: y(0), stroke: "var(--zero)", "stroke-width": 1.5}, svg);
+  days.forEach((d, i) => { if (d.bss !== null) { const rc = el("rect", {x: xc(i) - Math.min(18, bw * 0.35), y: Math.min(y(0), y(d.bss)), width: Math.min(36, bw * 0.7), height: Math.max(1.5, Math.abs(y(d.bss) - y(0))), rx: 3, fill: "var(--s6)", "fill-opacity": 0.8}, svg);
+      hover(rc, `<b>${d.day}</b><br>Skill ${signed(d.bss)} on ${fi(d.rows)} hours`); }
+    if (days.length <= 14 || i % Math.ceil(days.length / 10) === 0) { const tx = el("text", {x: xc(i), y: Hh - b + 16, "text-anchor": "middle"}, svg); tx.textContent = d.day.slice(5); } });
+  const pts = days.map((d, i) => d.cumulative_bss === null || d.cumulative_bss === undefined ? null : `${xc(i)},${y(d.cumulative_bss)}`).filter(Boolean);
+  if (pts.length) el("polyline", {points: pts.join(" "), fill: "none", stroke: "var(--ink)", "stroke-width": 2}, svg);
 }
 async function pollCheck() {
-  try { const r = await fetch(CHECK_URL, {cache: "no-store"}); if (!r.ok) throw new Error("HTTP " + r.status); live.check = await r.json(); live.checkError = null; }
+  try { const r = await fetch("/api/check", {cache: "no-store"}); if (!r.ok) throw new Error("HTTP " + r.status); live.check = await r.json(); live.checkError = null; }
   catch (e) { live.checkError = e.message || "network error"; }
   drawCheck();
 }
 
-// ---------- M11 §B4: replay of the final test (frozen predictions, official data) ----------
+// ---------- how good is it? (numbers copied from saved reports, plans/M13.md §1.4) ----------
+function drawHow() {
+  const H = D.how, row = (L, H_, p) => L.find(r => r.H === H_ && r.predictor === p);
+  const NAMEP = {model: "New model alone", blend: "New model blended with the rule (the map's forecast after the switch)",
+                 recent_rate: "Simple two-week rule", official_frozen: "Original study model (official data), same week"};
+  const tbl = (L, hs, words) => `<div class="tablewrap"><table><thead><tr><th scope=col>${words}</th>${hs.map(h => `<th scope=col>${h} h</th>`).join("")}</tr></thead><tbody>`
+    + ["blend", "model", "official_frozen", "recent_rate"].filter(p => L.some(r => r.predictor === p)).map(p => `<tr><td class="name">${NAMEP[p]}</td>${hs.map(h => { const r = row(L, h, p); return `<td>${r ? signed(r.brier_skill_vs_recent) : "n/a"}</td>`; }).join("")}</tr>`).join("")
+    + `<tr><td class="name muted">Oblast-hours</td>${hs.map(h => `<td>${fi(row(L, h, "model").rows)}</td>`).join("")}</tr></tbody></table></div>`;
+  const b1 = row(H.m6c1_test, 1, "blend");
+  $("how-new").innerHTML = `<h3>Trained on the new alert system <span class="tag">exploratory · one test week</span></h3>
+    <p>On the week it was tested (${dRange(D.dates.m6c1_test)}), the blended forecast for the next hour was <b>${Math.abs(100 * b1.brier_skill_vs_recent).toFixed(1)}% ${b1.brier_skill_vs_recent >= 0 ? "more" : "less"} accurate</b> than the simple two-week rule. Skill = how much smaller the error is than the rule's (0 = the same, above 0 = better).</p>
+    ${tbl(H.m6c1_test, [1, 3], "Test week")}
+    <p class="small muted">At 3 hours the original study's model did slightly better than the blend on this week (see the table). 6, 12 and 24 hours are not tested yet (their test week is ${dRange(D.dates.m12_test)}); on the earlier validation week, where the models were also tuned:</p>
+    ${tbl(H.m12_validation, [6, 12, 24], "Validation week")}`;
+  const O = H.official;
+  $("how-official").innerHTML = `<h3>The original study <span class="tag">official data · six-week test</span></h3>
+    <p>The first model, trained on the official data before the September alert reform, <b>${O.model.brier_skill_vs_recent > 0 ? "beat" : "did not beat"}</b> the simple two-week rule on its six-week test (${O.test_dates[0].slice(0, 10)} to ${O.test_dates[1].slice(0, 10)}): skill ${signed(O.model.brier_skill_vs_recent)} on ${fi(O.model.rows)} oblast-hours. That test was scored once, after every choice was fixed.</p>`;
+  relChart($("ch-official-rel"), [["model", "Model", "var(--s1)"], ["recent_rate", "Two-week rule", "var(--s2)"]].map(([k, n, c]) => ({name: n, color: c,
+    rows: O.reliability.filter(r => r.baseline === k).map(r => ({p: r.mean_p, o: r.mean_y, n: r.n}))})), "what it said", "how often an alert started");
+  $("limits").innerHTML = ["The new-data model was tested on one week only; one week can be lucky or unlucky.",
+    "Alerts changed after the September 2026 reform (yellow = drones, red = missiles); patterns can change again.",
+    "The forecast only uses past alerts, the clock and the neighbours; it knows nothing about launches, weather or news.",
+    "Frontline oblasts are under alert much of the time, so they have few forecastable hours.",
+    "The yellow/red part is in testing: it uses a simple rule until a model beats it.",
+    "This is a student project. It is not an official warning system."].map(s => `<li>${esc(s)}</li>`).join("");
+}
+
+// ---------- what kind of alert? (plans/M13.md §1.5) ----------
+live.kindSel = null;
+const kFill = s => `color-mix(in oklab, var(--alert) ${Math.round(12 + 80 * s)}%, var(--panel))`;
+function kindCard(u) {
+  const x = kindOf(u), K = live.payload && live.payload.forecast && live.payload.forecast.kind;
+  const nat = K && K.national && K.national.share !== null && K.national.share !== undefined ? `Whole country: red in ${K.national.R} of the last ${K.national.N} alerts (${pct(K.national.share)}).` : "Whole country: no national data.";
+  return `<div class="eyebrow">${esc(nm(u))}</div><div class="big state">${x && x.status === "ok" && x.N ? pct(x.share) : "–"}</div>
+    <p>If an alert starts here: <b>${esc(kindWords(x))}</b>.</p>${x && x.status === "ok" && x.N ? `<p class="small">Of its last ${x.N} alerts with a known kind (7 days), ${x.R} were red.</p>` : ""}<p class="small muted">${nat}</p><p class="small"><a href="#map">Chance of an alert on the map</a></p>`;
+}
+function drawKind() {
+  const K = live.payload && live.payload.forecast && live.payload.forecast.kind;
+  const X = u => K && K.units ? K.units[u] : null;
+  geoMap($("kind-map"), {fill: u => { const x = X(u); return x && x.status === "ok" && x.N ? kFill(x.share) : "var(--tile-empty)"; },
+    value: u => { const x = X(u); return x && x.status === "ok" && x.N ? pct(x.share) : "–"; },
+    tip: u => `<b>${esc(nm(u))}</b><br>If it comes: ${esc(kindWords(X(u)))}<br><i>in testing</i>`, sel: live.kindSel,
+    onPick: u => { live.kindSel = u; $("kind-card").innerHTML = kindCard(u); drawKind(); }});
+  $("kind-legend").innerHTML = [0, 0.25, 0.5, 0.75, 1].map(s => `<span><span class="sw" style="background:${kFill(s)}"></span>${Math.round(100 * s)}% red</span>`).join("") + `<span><span class="sw" style="background:var(--tile-empty)"></span>no alerts / not enough data</span>`;
+  if (live.kindSel) $("kind-card").innerHTML = kindCard(live.kindSel);
+  if (K && K.error) $("kind-card").innerHTML = `<p class="muted">The alert-kind rule is unavailable right now (${esc(K.error)}).</p>`;
+}
+function drawKindCheck() {
+  const C = D.kind_check;
+  relChart($("ch-kind-rel"), [{name: "Red-share rule", color: "var(--alert)", rows: C.bins.map(q => ({p: q.mean_p, o: q.observed, n: q.rows}))}], "share of red the rule gave", "share that was red");
+  const pooledOk = C.auc_pooled >= 0.7, withinOk = C.auc_within >= 0.6;
+  $("kind-check-note").textContent = `Checked on ${fi(C.rows)} alert starts before ${dDay(C.end)} ${new Date(C.end).getUTCFullYear()} (${pct(C.base_rate)} were red): the rule was ${Math.abs(100 * C.bss_vs_national).toFixed(0)}% ${C.bss_vs_national >= 0 ? "more" : "less"} accurate than the whole country's red share. Ranking across all oblasts ${C.auc_pooled.toFixed(2)} (${pooledOk ? "it tells oblasts apart" : "weak"}); inside one oblast ${C.auc_within.toFixed(2)} over the ${fi(C.units_used)} oblasts with enough red and yellow alerts (${withinOk ? "useful" : "about chance level: it does not tell which alerts will be red"}; 0.5 = chance).${C.low_n ? " Few cases in some groups." : ""} Exploratory.`;
+}
+
+// ---------- replay of the M6c-1 test week (plans/M13.md §1.2) ----------
 // <replay-stats> pure function, also run under node by tests/test_site.py on the built payload
-function replayStats(T, n) {
-  let rows = 0, positives = 0, sumModel = 0, sumRecent = 0;
-  for (const u of Object.keys(T.units).sort()) {
-    const U = T.units[u];
+function replayStats(R, n) {
+  let rows = 0, positives = 0, sumBlend = 0, sumRule = 0;
+  for (const u of Object.keys(R.units).sort()) {
+    const U = R.units[u];
     for (let h = 0; h < n; h++) {
       if (U.status[h] !== 0) continue;
       const y = U.y[h];
-      rows += 1; positives += y; sumModel += (U.p_model[h] - y) ** 2; sumRecent += (U.p_recent[h] - y) ** 2;
+      rows += 1; positives += y; sumBlend += (U.p[h] - y) ** 2; sumRule += (U.rr[h] - y) ** 2;
     }
   }
-  return {rows, positives, brier_model: rows ? sumModel / rows : null, brier_recent: rows ? sumRecent / rows : null,
-          bss: rows && sumRecent > 0 ? 1 - sumModel / sumRecent : null};
+  return {rows, positives, brier_blend: rows ? sumBlend / rows : null, brier_rule: rows ? sumRule / rows : null,
+          bss: rows && sumRule > 0 ? 1 - sumBlend / sumRule : null};
 }
 // </replay-stats>
-const rp = {h: 0, timer: null, onsetH: {}};
-function replayTip(u) {
-  const U = D.timeline.units[u], h = rp.h, s = U.status[h];
-  const what = s === 0 ? `Model: <b>${pct(U.p_model[h])}</b> · two-week rule ${pct(U.p_recent[h])}` : s === 1 ? "Already under alert: not forecast" : s === 2 ? "Recording gap: not scored" : s === 4 ? "An input was unknown (after the gap): not scored" : "Not scored";
-  return `<b>${esc(nm(u))}</b><br>${what}${rp.onsetH[u].has(h) ? "<br>A new alert started within this hour" : ""}`;
-}
+const rp = {H: "1", h: 0, timer: null};
 function replayInit() {
-  const T = D.timeline, svg = $("replay-map");
-  for (const u of Object.keys(T.units)) rp.onsetH[u] = new Set(T.units[u].onsets_min.map(m => Math.ceil(m / 60) - 1));
-  $("replay-label").textContent = `Frozen predictions, test scored once on ${D.replay.scored_once_utc.slice(0, 10)}: this replays the saved hourly forecasts (no model is re-run; the running totals below are summed in your browser from those saved forecasts). 27 July – 7 September 2026, official data, air-raid alerts.`;
-  geoMap(svg, {fill: () => "var(--tile-empty)", value: () => "", tip: u => replayTip(u)});
-  const firstText = svg.querySelector("text");
-  for (const u of Object.keys(GEO.units)) {
-    const ov = el("path", {d: GEO.units[u], "fill-rule": "evenodd", fill: "url(#replay-map-alert)", "pointer-events": "none", "data-ov": u, display: "none"});
-    const ring = el("path", {d: GEO.units[u], class: "ring", "data-ring": u, display: "none"});
-    svg.insertBefore(ov, firstText); svg.insertBefore(ring, firstText);
-  }
-  const sl = $("rp-slider"); sl.max = T.hours - 1;
-  sl.oninput = () => { rp.h = +sl.value; replayDraw(); };
+  const T = D.replay;
+  $("replay-label").textContent = `A reconstruction of the week the new-data model was tested on (${dRange(D.dates.m6c1_test)}): the map shows, hour by hour, the chance it gave of a new alert within the chosen hours, and a red outline where one then started. The week was scored once; later data revisions are included. Exploratory, one week.`;
+  $("seg-rp").innerHTML = Object.keys(T.H).map(h => `<button type="button" data-h="${h}" aria-pressed="${h === rp.H}">${h} h</button>`).join("");
+  $("seg-rp").querySelectorAll("button").forEach(b => b.onclick = () => { rp.H = b.dataset.h; $("seg-rp").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x.dataset.h === rp.H)); replayDraw(); });
+  geoMap($("replay-map"), {fill: () => "var(--tile-empty)", value: () => "", tip: u => replayTip(u), overlay: () => "alert"});
+  const sl = $("rp-slider"); sl.max = T.hours - 1; sl.oninput = () => { rp.h = +sl.value; replayDraw(); };
   $("rp-step").onclick = () => { rp.h = Math.min(T.hours - 1, rp.h + 1); replayDraw(); };
   const stop = () => { clearInterval(rp.timer); rp.timer = null; $("rp-play").textContent = "Play"; $("rp-play").setAttribute("aria-pressed", "false"); };
   const start = () => { if (rp.h >= T.hours - 1) rp.h = 0; rp.timer = setInterval(() => { if (rp.h >= T.hours - 1) { stop(); return; } rp.h += 1; replayDraw(); }, 1000 / +$("rp-speed").value);
@@ -1013,102 +626,55 @@ function replayInit() {
   $("rp-play").onclick = () => rp.timer ? stop() : start();
   $("rp-speed").onchange = () => { if (rp.timer) { stop(); start(); } };
   $("replay-legend").innerHTML = PLABEL.map((lb, i) => `<span><span class="sw" style="background:color-mix(in oklab, var(--s6) ${PMIX[i]}%, var(--panel))"></span>${lb}</span>`).join("")
-    + `<span><svg width="14" height="12" aria-hidden="true"><rect x="1.5" y="1.5" width="11" height="9" fill="none" stroke="var(--alert)" stroke-width="2.4"/></svg>a new alert started within the hour</span>`
-    + `<span><svg width="14" height="12" aria-hidden="true"><rect width="14" height="12" fill="var(--alert-soft)"/><rect width="14" height="12" fill="url(#replay-map-alert)"/></svg>already under alert (not forecast)</span>`
-    + `<span><span class="sw" style="background:var(--tile-empty)"></span>recording gap, input unknown or not scored</span>`;
+    + `<span><svg width="14" height="12" aria-hidden="true"><rect x="1.5" y="1.5" width="11" height="9" fill="none" stroke="var(--alert)" stroke-width="2.4"/></svg>a new alert started within the chosen hours after this time</span>`
+    + `<span>${swatch("var(--alert-soft)", "replay-map-alert")}under alert</span><span><span class="sw" style="background:var(--tile-empty)"></span>data gap / not scored</span>`;
   replayDraw();
 }
+function replayTip(u) {
+  const R = D.replay.H[rp.H], U = R.units[u], h = rp.h, s = U.status[h];
+  return `<b>${esc(nm(u))}</b><br>${s === 0 ? `Chance of a new alert in the next ${rp.H} h: <b>${pct(U.p[h])}</b> · two-week rule ${pct(U.rr[h])}${U.y[h] ? `<br>An alert started within those ${rp.H} h` : ""}` : s === 1 ? "Under alert: no forecast" : "Not scored (data gap or input unknown)"}`;
+}
 function replayDraw() {
-  const T = D.timeline, h = rp.h, svg = $("replay-map"), t = new Date(T.start).getTime() + h * HR;
-  for (const u of Object.keys(T.units)) {
-    const U = T.units[u], s = U.status[h];
-    const p = svg.querySelector(`path.u[data-u="${u}"]`); if (p) p.style.fill = s === 0 ? pFill(U.p_model[h]) : s === 1 ? "var(--alert-soft)" : "var(--tile-empty)";
-    svg.querySelector(`[data-ov="${u}"]`).setAttribute("display", s === 1 ? "inline" : "none");
-    svg.querySelector(`[data-ring="${u}"]`).setAttribute("display", rp.onsetH[u].has(h) ? "inline" : "none");
-    const tx = svg.querySelector(`text.pv[data-u="${u}"]`); if (tx) tx.textContent = s === 0 ? pct(U.p_model[h]) : s === 1 ? "alert" : "";
-  }
+  const T = D.replay, R = T.H[rp.H], h = rp.h, svg = $("replay-map"), t = new Date(T.start).getTime() + h * HR;
+  for (const u of Object.keys(R.units)) { const U = R.units[u], s = U.status[h];
+    const p = svg.querySelector(`path.u[data-u="${u}"]`); if (p) p.style.fill = s === 0 ? pFill(U.p[h]) : s === 1 ? "var(--alert-soft)" : "var(--tile-empty)";
+    const ov = svg.querySelector(`[data-ov="${u}"]`); if (ov) ov.setAttribute("display", s === 1 ? "inline" : "none");
+    const rg = svg.querySelector(`[data-ring="${u}"]`); if (rg) rg.setAttribute("display", s === 0 && U.y[h] === 1 ? "inline" : "none");
+    const tx = svg.querySelector(`text.pv[data-u="${u}"]`); if (tx) tx.textContent = s === 0 ? pct(U.p[h]) : s === 1 ? "alert" : ""; }
   $("rp-slider").value = h;
-  $("rp-time").innerHTML = `<b>${kyivDT(t)}–${kyiv(t + HR)}</b> Kyiv · hour ${h + 1} of ${T.hours}`;
-  const S = replayStats(T, h + 1);
-  $("rp-counter").innerHTML = `<div><dt>Scored oblast-hours so far</dt><dd>${fi(S.rows)}</dd></div><div><dt>New alerts among them</dt><dd>${fi(S.positives)}</dd></div>`
-    + `<div><dt>Brier: model / two-week rule</dt><dd>${S.brier_model === null ? "n/a" : S.brier_model.toFixed(4) + " / " + S.brier_recent.toFixed(4)}</dd></div><div><dt>Skill so far (pooled)</dt><dd>${signed(S.bss)}</dd></div>`;
-  $("rp-note").textContent = h === T.hours - 1
-    ? `End of the test: pooled skill ${signed(S.bss, 6)} on ${fi(S.rows)} hours, the same as the headline (${signed(D.replay.headline_bss, 6)} on ${fi(D.replay.headline_rows)} hours).`
-    : `Running totals over the hours up to the one shown (each hour's outcome is already in the saved test data). At the end they equal the headline (${signed(D.replay.headline_bss)}). No hours after 28 August 22:00 UTC are scored: the recording gap and the days after it have no forecast.`;
+  $("rp-time").innerHTML = `<b>${kyivDT(t)}</b> Kyiv · hour ${h + 1} of ${T.hours}`;
+  const S = replayStats(R, h + 1);
+  $("rp-counter").innerHTML = `<div><dt>Oblast-hours so far</dt><dd>${fi(S.rows)}</dd></div><div><dt>New alerts among them</dt><dd>${fi(S.positives)}</dd></div><div><dt>Skill vs the rule so far</dt><dd>${S.bss === null ? "—" : signed(S.bss)}</dd></div>`;
+  $("rp-note").textContent = h === T.hours - 1 ? `End of the week: skill ${signed(S.bss, 4)} on ${fi(S.rows)} oblast-hours, the same as the published test result (${signed(R.published_blend_bss, 4)}).`
+    : "Retrospective: the outcomes of this week are already known; the running totals add them up to the hour shown.";
 }
 
-// ---------- M11 §B5-§B6: stability (M10 §D) and related-work checks (M10 §A-§C) ----------
-const PCOL = ["var(--s1)", "var(--s3)", "var(--s4)", "var(--s5)", "var(--s6)"];
-const PNAME = {V0: "Model (headline, V0)", model: "Model (headline, V0)", V2: "V2 offset", M10: "M10 chosen variant", recent_rate: "Two-week rule"};
-st.stabG = "overall";
-function bssBars(svg, cats, preds, get, catLabel) {
-  svg.innerHTML = "";
-  const rowH = 14 * preds.length + 14, W = 520, top = 8, left = 96, right = 62, Hh = top + cats.length * rowH + 26;
-  svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
-  const vals = cats.flatMap(c => preds.map(p => get(c, p))).filter(r => r && r.brier_skill_vs_recent !== null).map(r => r.brier_skill_vs_recent);
-  let lo = Math.min(-0.05, ...vals), hi = Math.max(0.05, ...vals); const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
-  const x = v => left + (v - lo) / (hi - lo) * (W - left - right);
-  niceTicks(lo, hi, 5).forEach(v => { el("line", {x1: x(v), x2: x(v), y1: top - 4, y2: Hh - 22, stroke: "var(--grid)"}, svg); const tx = el("text", {x: x(v), y: Hh - 6, "text-anchor": "middle"}, svg); tx.textContent = v.toFixed(2); });
-  el("line", {x1: x(0), x2: x(0), y1: top - 6, y2: Hh - 22, stroke: "var(--zero)", "stroke-width": 1.5}, svg);
-  cats.forEach((c, i) => { const y0 = top + i * rowH;
-    const lb = el("text", {x: left - 8, y: y0 + rowH / 2 + 3, "text-anchor": "end", class: "lbl"}, svg); lb.textContent = catLabel(c);
-    preds.forEach((p, j) => { const r = get(c, p), y = y0 + 6 + j * 14; if (!r) return;
-      const v = r.brier_skill_vs_recent;
-      if (v === null) { const tx = el("text", {x: x(0) + 4, y: y + 9}, svg); tx.textContent = "n/a"; return; }
-      const rc = el("rect", {x: Math.min(x(0), x(v)), y, width: Math.max(1.5, Math.abs(x(v) - x(0))), height: 11, rx: 2, fill: PCOL[j % PCOL.length], "fill-opacity": r.low_n ? 0.45 : 0.9}, svg);
-      const vt = el("text", {x: (v >= 0 ? x(v) : x(0)) + 4, y: y + 9}, svg); vt.textContent = signed(v);
-      hover(rc, `<b>${esc(PNAME[p] || p)}</b> · ${esc(catLabel(c))} · ${GROUPS[st.stabG]}<br>Skill ${signed(v, 4)}<br>${fi(r.rows)} hours, ${fi(r.positives)} new alerts${r.low_n ? "<br><i>few hours (low-n)</i>" : ""}${r.nan_reason ? "<br>" + esc(r.nan_reason) : ""}`); }); });
-}
-function stability() {
-  const S = D.m10.stability, miss = $("stab-missing");
-  if (!S.available) { miss.hidden = false; miss.innerHTML = `<b>Not run yet.</b> ${esc(S.reason)}.`; $("stab-body").hidden = true; return; }
-  miss.hidden = true; $("stab-body").hidden = false;
-  const seg = $("seg-stab");
-  if (!seg.children.length) { seg.innerHTML = Object.entries(GROUPS).map(([k, v]) => `<button type="button" data-g="${k}" aria-pressed="${k === st.stabG}">${v}</button>`).join("");
-    seg.querySelectorAll("button").forEach(b => b.onclick = () => { st.stabG = b.dataset.g; seg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x.dataset.g === st.stabG)); stability(); }); }
-  const draw = rows => {
-    const R = rows.filter(r => r.group === st.stabG && r.baseline !== "recent_rate");
-    const order = ["V0", "model", "V2", "M10"], rank = p => order.includes(p) ? order.indexOf(p) : 99;
-    const preds = [...new Set(R.map(r => r.baseline))].sort((a, b) => rank(a) - rank(b) || String(a).localeCompare(String(b)));
-    const get = (kind, c, p) => R.find(r => r.slice_kind === kind && String(r.slice) === c && r.baseline === p);
-    const weeks = [...new Set(R.filter(r => r.slice_kind === "week").map(r => String(r.slice)))].sort();
-    return {preds, weeks, get};
-  };
-  const v = draw(S.rows);
-  bssBars($("ch-stab-week"), v.weeks, v.preds, (c, p) => v.get("week", c, p), c => "wk " + c.slice(5));
-  bssBars($("ch-stab-dn"), ["day", "night"], v.preds, (c, p) => v.get("day_night", c, p), c => c);
-  $("stab-legend").innerHTML = v.preds.map((p, j) => `<span><span class="sw" style="background:${PCOL[j % PCOL.length]}"></span>${esc(PNAME[p] || p)}</span>`).join("") + `<span class="muted">pale bars: few hours (low-n)</span>`;
-  const P = D.m10.stability_posthoc;
-  $("stab-posthoc-panel").hidden = !P.available;
-  if (P.available) { const w = draw(P.rows); bssBars($("ch-stab-post"), [...w.weeks, "day", "night"], w.preds, (c, p) => c === "day" || c === "night" ? w.get("day_night", c, p) : w.get("week", c, p), c => c === "day" || c === "night" ? c : "wk " + c.slice(5)); }
-}
-function m10Tables() {
-  const items = [
-    ["labels_variant", "Which alert levels count", "L0 = all levels (the study); L1 = without hromada-level rows. Hypothesis, not a finding: the frontline base rate and the frontline gap to the two-week rule are partly driven by hromada-level rows. L1 is only a proxy: it also drops some real air-raid hromada alerts."],
-    ["labels_predictability", "Predictability under each label variant", "Each variant is scored against its own two-week rule on its own hours. Brier is never compared across variants: they have different targets."],
-    ["recency_folds", "Weighting recent training data more", "Half-lives fixed in advance. One passes only if the mean fold Brier drops by at least 0.5% and drops in at least 3 of 4 folds (the M7 rule); otherwise equal weights stay."],
-    ["exposure_folds", "Hours under alert recently (3 h, 24 h, 7 d)", "Accepted only by the same 0.5% and 3-of-4-folds rule, on the same folds."]];
-  const fmtv = v => v === null || v === undefined ? '<span class="na">n/a</span>' : typeof v === "boolean" ? (v ? "yes" : "no") : typeof v === "number" ? (Number.isInteger(v) ? fi(v) : v.toFixed(4)) : esc(v);
-  $("m10-body").innerHTML = items.map(([k, title, words]) => { const T = D.m10[k];
-    const body = !T.available ? `<div class="pending"><b>Not run yet.</b> ${esc(T.reason)}.</div>`
-      : `<div class="tablewrap${T.rows.length > 12 ? " tall" : ""}"><table><thead><tr>${T.columns.map(c => `<th scope=col>${esc(c)}</th>`).join("")}</tr></thead><tbody>${T.rows.map(r => `<tr>${T.columns.map(c => `<td>${fmtv(r[c])}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="muted small">Source: reports/m10/${esc(T.file)}${T.columns.includes("unit") ? " (group rows; per-oblast rows are in the file)" : ""}.</p>`;
-    return `<div class="panel" id="m10-${k}"><header><h3>${title}</h3><p class="muted small">${words}</p></header>${body}</div>`; }).join("");
+// ---------- about (plans/M13.md §1.6) ----------
+function drawAbout() {
+  const V = modelView(live.payload, NOT_YET);
+  $("about-body").innerHTML = `<p><b>What it is.</b> A forecast, per Ukrainian oblast, of the chance that a new air-raid alert starts within the next 1, 3, 6, 12 or 24 hours, made only from what is known now. Luhanska oblast and Crimea are not forecast (permanent alert / not in the data).</p>
+    <p><b>How it works.</b> A gradient-boosted tree model looks at each oblast's recent alerts (how long since the last one started and ended, how many in the last day and week), how many neighbouring oblasts and how many oblasts nationwide are under alert, and the hour and weekday in Kyiv. The new model's chance is blended with a simple rule, "how often did an alert start here in the last two weeks", weighted by how well the model has done recently. While an oblast is under alert there is no forecast of a new one.</p>
+    <p><b>Which model is live now.</b> ${V.active ? "The new model, trained on alerts.in.ua data since September 2026 (air-raid alerts only), for every horizon." : "For 1 hour: the current model, trained on the official data before the September 2026 alert reform and run on live data (it counts all alert types). The new model for every horizon is switched on by hand after its test week (${dRange(D.dates.m12_test)})."}</p>
+    <p><b>Data.</b> Live alerts: alerts.in.ua. The study: the official alert feed (Vadimkin/ukrainian-air-raid-sirens-dataset). Oblast boundaries: geoBoundaries.</p>
+    <p><b>Red or yellow.</b> Since September 2026 alerts carry a level: yellow = drones, red = missiles. "If it comes" uses the share of red among the oblast's alerts of the last 7 days; it is in testing.</p>
+    <p><b>Please note.</b> A student project, not an official warning system. Always follow official air-raid alerts.</p>`;
 }
 
-function render() {
-  document.querySelectorAll("#seg-h button").forEach(b => b.setAttribute("aria-pressed", b.dataset.h === st.h));
-  document.querySelectorAll("#seg-g button").forEach(b => b.setAttribute("aria-pressed", b.dataset.g === st.g));
-  document.querySelectorAll("#seg-p button").forEach(b => b.setAttribute("aria-pressed", b.dataset.p === st.p));
-  document.getElementById("note-h").textContent = st.h === "h3" ? "3-hour horizon: an extra results row. Base rates and the reference baseline differ, so do not compare it with the 1-hour numbers." : "";
-  document.getElementById("sec1-eyebrow").textContent = `${st.p === "final" ? "Final test" : "Validation"} · ${H().H} · ${GROUPS[st.g]}`;
-  skillChart(); aucChart(); table(); reliability(); citl();
+// ---------- tabs (hash routing) ----------
+const TABS = ["map", "replay", "check", "how", "kind", "about"];
+function route() {
+  const k = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "map";
+  for (const t of TABS) $(`tab-${t}`).hidden = t !== k;
+  document.querySelectorAll("nav.tabs a").forEach(a => { if (a.dataset.tab === k) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+  if (k === "about") drawAbout();
+  if (k === "check") drawCheck();
+  hideTip();
 }
-document.querySelectorAll("#seg-v button").forEach(b => b.onclick = () => { st.v = b.dataset.v; document.querySelectorAll("#seg-v button").forEach(x => x.setAttribute("aria-pressed", x.dataset.v === st.v)); beforeAfter(); transfer(); method(); });
-document.querySelectorAll("#seg-map button").forEach(b => b.onclick = () => { st.map = b.dataset.m; document.querySelectorAll("#seg-map button").forEach(x => x.setAttribute("aria-pressed", x.dataset.m === st.map)); drawMap(); });
-plain(); drawLive(); pollLive(); setInterval(pollLive, LIVE_EVERY); setInterval(drawLive, 20e3);
-stripLegend(); drawDetail(); drawCheck(); pollHistory(); pollCheck(); setInterval(pollHistory, HISTORY_EVERY); setInterval(pollCheck, CHECK_EVERY);
+addEventListener("hashchange", route);
+route(); drawLive(); drawHow(); drawKindCheck(); replayInit(); drawKind();
+pollLive(); pollHistory(); pollCheck();
+setInterval(pollLive, 60e3); setInterval(drawLive, 20e3); setInterval(pollHistory, 10 * 60e3); setInterval(pollCheck, 30 * 60e3);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) pollLive(); });
-drawMap(); timeline(); replayInit(); stability(); m10Tables(); controls(); render(); beforeAfter(); transfer(); method();
 })();
 </script>
 </body>

@@ -17,11 +17,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 MAP = ROOT / "site_src" / "map_ukraine.json"
 PATTERN_JS = ROOT / "netlify" / "live" / "lib" / "pattern.mjs"     # M11 §B2b: same code as the node tests
+KIND_JS = ROOT / "netlify" / "live" / "lib" / "kind_words.mjs"     # M13 §1: the tested "what kind" wording
 sys.path.insert(0, str(ROOT))
 
 from src import regions  # noqa: E402  (unit/group table only: the single place names are mapped)
@@ -218,7 +220,100 @@ def build_payload(reports):
                          "headline_bss": clean(hm.loc[("model", "overall"), "brier_skill_vs_recent"]),
                          "headline_rows": clean(hm.loc[("model", "overall"), "rows"])}
     payload["m10"] = read_m10(reports / "m10")
+    payload["page"] = page_payload(payload, reports)
     return payload
+
+
+# ---------------- M13: the slim payload the redesigned page embeds (plans/M13.md §2) ----------------
+REPLAY_STATUS = {"scored": 0, "under_alert": 1, "gap": 2, "feature_missing": 3, "purged": 4}
+
+
+def page_payload(payload, reports):
+    """Only what the six tabs need; every number copied from a saved report (README generation keeps the full payload)."""
+    reports = Path(reports)
+    m6 = pd.read_csv(_need(reports / "m6c1" / "metrics.csv"), float_precision="round_trip")
+    m6 = m6[(m6["type"] == "any") & (m6["group"] == "overall")
+            & m6["predictor"].isin(["model", "blend", "recent_rate", "official_frozen"])]
+    if len(m6) != 8:
+        raise SiteError("reports/m6c1/metrics.csv: need any H = 1/3 x model/blend/recent_rate/official_frozen overall rows")
+    v12 = pd.read_csv(_need(reports / "m12" / "metrics_validation.csv"), float_precision="round_trip")
+    v12 = v12[(v12["type"] == "any") & (v12["H"].isin([6, 12, 24])) & (v12["group"] == "overall")
+              & v12["predictor"].isin(["model", "blend", "recent_rate"])]
+    if len(v12) != 9:
+        raise SiteError("reports/m12/metrics_validation.csv: need any H = 6/12/24 x model/blend/recent_rate overall rows")
+    pick = lambda r: {k: clean(r[k]) for k in ("H", "predictor", "rows", "positives", "base_rate", "brier",  # noqa: E731
+                                                "brier_skill_vs_recent", "roc_auc_within_unit_mean")}
+    h1 = payload["horizons"]["h1"]
+    official = {"model": {k: h1["final"]["model"]["overall"][k] for k in ("brier_skill_vs_recent", "rows", "brier")},
+                "reliability": [r for r in h1["reliability"] if r["baseline"] in ("model", "recent_rate")],
+                "test_dates": h1["dates"]["test"]}
+    # replay: the M6c-1 test-week reconstruction, compact per (H, unit) arrays
+    rp = pd.read_csv(_need(reports / "m12" / "replay_m6c1_any.csv"), parse_dates=["t"], float_precision="round_trip")
+    bad = set(rp["status"]) - set(REPLAY_STATUS)
+    if bad:
+        raise SiteError(f"replay_m6c1_any.csv: unknown status {sorted(bad)}")
+    if sorted(rp["H"].unique()) != [1, 3]:
+        raise SiteError(f"replay_m6c1_any.csv: need horizons 1 and 3, got {sorted(rp['H'].unique())}")
+    extra = set(rp["unit"]) - set(regions.UNITS)
+    if extra:
+        raise SiteError(f"replay_m6c1_any.csv: units not in regions.py {sorted(extra)}")
+    sc = rp[rp["status"] == "scored"]
+    if sc[["y", "p_blend", "p_baseline"]].isna().any().any() or not sc["y"].isin([0, 1]).all():
+        raise SiteError("replay_m6c1_any.csv: a scored row lacks y / p_blend / p_baseline (or y is not 0/1)")
+    if rp.duplicated(["H", "unit", "t"]).any():
+        raise SiteError("replay_m6c1_any.csv: duplicate (H, unit, t)")
+    t0, t1 = rp["t"].min(), rp["t"].max()
+    hours = int((t1 - t0) / pd.Timedelta(hours=1)) + 1
+    replay = {"start": t0.isoformat(), "hours": hours, "status_names": list(REPLAY_STATUS), "H": {}}
+    for H, g in rp.groupby("H"):
+        units = {}
+        for u in regions.UNITS:
+            gu = g[g["unit"] == u].set_index("t")
+            idx = pd.date_range(t0, t1, freq="h")
+            if not gu.index.isin(idx).all() or gu.index.duplicated().any():
+                raise SiteError(f"replay H={H} {u}: hours off the grid or duplicated")
+            gu = gu.reindex(idx)
+            tail = idx > g["t"].max()               # an H-hour grid ends H - 1 h earlier: those hours are purged
+            gu.loc[tail & gu["status"].isna(), "status"] = "purged"
+            st = gu["status"].map(REPLAY_STATUS)
+            if st.isna().any():
+                raise SiteError(f"replay H={H} {u}: missing unit-hours inside the grid")
+            units[u] = {"status": [int(x) for x in st], "y": [None if pd.isna(x) else int(x) for x in gu["y"]],
+                        "p": [None if pd.isna(x) else float(x) for x in gu["p_blend"]],
+                        "rr": [None if pd.isna(x) else float(x) for x in gu["p_baseline"]]}
+        pub = m6[(m6["H"] == H) & (m6["predictor"] == "blend")].iloc[0]
+        replay["H"][str(int(H))] = {"units": units, "published_blend_bss": clean(pub["brier_skill_vs_recent"]),
+                                    "published_rows": clean(pub["rows"])}
+    # what kind of alert: reliability of the red-share rule (10 fixed-width bins, D-025) + its skill vs the national share
+    rs = pd.read_csv(_need(reports / "m12" / "redshare_rows.csv"), float_precision="round_trip")
+    if rs[["rule", "y"]].isna().any().any() or not rs["rule"].between(0, 1).all() or not rs["y"].isin([0, 1]).all():
+        raise SiteError("redshare_rows.csv: rule must be in [0, 1] and y 0/1 on every row")
+    rt = pd.read_csv(_need(reports / "m12" / "redshare.csv"), float_precision="round_trip")
+    if rt.duplicated(["predictor", "group"]).any() or not ((rt["predictor"] == "rule") & (rt["group"] == "overall")).any():
+        raise SiteError("redshare.csv: need exactly one (rule, overall) row")
+    rt = rt.set_index(["predictor", "group"])
+    b = np.minimum((rs["rule"] * 10).astype(int), 9)
+    bins = [{"lo": i / 10, "hi": (i + 1) / 10, "rows": int((b == i).sum()),
+             "mean_p": clean(rs.loc[b == i, "rule"].mean()) if (b == i).any() else None,
+             "observed": clean(rs.loc[b == i, "y"].mean()) if (b == i).any() else None} for i in range(10)]
+    r = rt.loc[("rule", "overall")]
+    rs_meta = json.loads(_need(reports / "m12" / "run_meta.json").read_text())["stages"]["redshare"]
+    kind = {"bins": bins, "rows": clean(r["rows"]), "base_rate": clean(r["base_rate"]),
+            "bss_vs_national": clean(r["brier_skill_vs_national"]), "auc_within": clean(r["roc_auc_within_unit_mean"]),
+            "auc_pooled": clean(r["roc_auc_pooled"]), "units_used": clean(r["within_unit_units_used"]),
+            "low_n": bool(r["low_n"]), "end": rs_meta["end"]}
+    # dates shown on the page come from the pre-registrations and the bundled registry (nothing typed by hand)
+    s6 = json.loads(_need(reports / "m6c1" / "preregistration.json").read_text())["split"]
+    s12 = json.loads(_need(reports / "m12" / "preregistration.json").read_text())["split"]
+    reg = json.loads(_need(ROOT / "netlify" / "live" / "model" / "m12" / "registry.json").read_text())
+    dates = {"m6c1_test": [s6["test_start"], s6["test_end"]], "m12_test": [s12["test_start"], s12["test_end"]],
+             "earliest_activation_ms": reg["earliest_activation"]}
+    print(f"[site] page: M6c-1 test rows {len(m6)}, M12 validation rows {len(v12)}, replay {hours} h x {rp['H'].nunique()} "
+          f"horizons, red-share rows {len(rs):,} (share red {rs['y'].mean():.4f})")
+    return {"units": payload["units"], "groups": payload["groups"], "neighbours": payload["neighbours"], "map": payload["map"],
+            "how": {"m6c1_test": [pick(x) for _, x in m6.iterrows()], "m12_validation": [pick(x) for _, x in v12.iterrows()],
+                    "official": official},
+            "replay": replay, "kind_check": kind, "dates": dates}
 
 
 # ---------------- M11 §B5-§B7: optional M10 tables ----------------
@@ -618,15 +713,22 @@ def write_readme_blocks(readme, blocks):
 
 def render_site(payload, template):
     html = Path(template).read_text()
-    data = json.dumps(payload, separators=(",", ":"), allow_nan=False).replace("</", "<\\/")
+    data = json.dumps(payload["page"] if "page" in payload else payload, separators=(",", ":"),
+                      allow_nan=False).replace("</", "<\\/")
     if html.count("/*__DATA__*/null") != 1:
         raise SiteError("template needs exactly one /*__DATA__*/null placeholder")
     if html.count("/*__PATTERN_JS__*/") != 1:
         raise SiteError("template needs exactly one /*__PATTERN_JS__*/ placeholder")
-    pattern = re.sub(r"^export ", "", _need(PATTERN_JS).read_text(), flags=re.M)
-    if re.search(r"^\s*import ", pattern, flags=re.M) or "</script" in pattern:
-        raise SiteError(f"{PATTERN_JS} must be self-contained to be inlined")
-    return html.replace("/*__PATTERN_JS__*/", pattern).replace("/*__DATA__*/null", data)
+    if html.count("/*__KIND_JS__*/") != 1:
+        raise SiteError("template needs exactly one /*__KIND_JS__*/ placeholder")
+    inl = {}
+    for name, path in (("PATTERN", PATTERN_JS), ("KIND", KIND_JS)):
+        code = re.sub(r"^export ", "", _need(path).read_text(), flags=re.M)
+        if re.search(r"^\s*import ", code, flags=re.M) or "</script" in code:
+            raise SiteError(f"{path} must be self-contained to be inlined")
+        inl[name] = code
+    return (html.replace("/*__PATTERN_JS__*/", inl["PATTERN"]).replace("/*__KIND_JS__*/", inl["KIND"])
+            .replace("/*__DATA__*/null", data))
 
 
 def build_site(payload, template, out):

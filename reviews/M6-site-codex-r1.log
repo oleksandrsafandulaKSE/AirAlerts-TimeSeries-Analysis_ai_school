@@ -1,0 +1,20 @@
+[codex] I’ll read the required files first, then check the live code and tests for concrete contradictions and gaps.
+[codex] > "pwd && rg --files -g 'AGENTS.md' -g 'CLAUDE.md' -g 'DECISIONS.md' -g 'M6-site.md' -g 'M6-definition
+[codex] > 'cat plans/M6-site.md plans/M6-definition.md plans/M8.md CLAUDE.md DECISIONS.md .claude/skills/ts-le
+[codex] > 'cat CLAUDE.md'
+[codex] > 'cat plans/M8.md'
+[codex] > "rg --files -g 'AGENTS.md' -g '*.mjs' netlify/live netlify/functions; cat DECISIONS.md | head -100"
+[codex] I’m applying the project’s `ts-leakage-audit` skill. I’m checking how the store tracks when levels and history cov
+[codex] > 'cat netlify/live/lib/live.mjs netlify/live/lib/features.mjs'
+[codex] > 'cat netlify/live/lib/runner.mjs netlify/live/lib/lgb.mjs netlify/functions/forecast.mjs scripts/bui
+[codex] > "rg --files -g 'AGENTS.md' -g '*live*' tests improve; rg -n 'liveCard|liveTip|typed|function drawLiv
+[codex] > "sed -n '475,675p' site_src/template.html; cat improve/live_ref.py tests/test_live_parity.py"
+[codex] > 'cat netlify/live/test/live.test.mjs netlify/live/test/runner.test.mjs tests/test_live_assets.py'
+[codex] > "nl -ba plans/M6-site.md; cat .claude/skills/ts-leakage-audit/SKILL.md; rg -n 'AGENTS|commit|D-03' r
+[codex] > "cat improve/live_ref.py; sed -n '335,398p' site_src/template.html; sed -n '635,665p' site_src/templ
+[codex] > "cat tests/test_live_parity.py; cat reviews/PROPOSED-DECISIONS-M6.md; rg -n 'history_start|new_regim
+[codex] The live code confirms two gaps: `knownAt()` strips the fields needed for typed filtering, and the card opens on click/t
+[codex] ## BLOCKERS
+Reading prompt from stdin...
+session_id=01a14bb5-861b-7fe0-a9bd-fa36e8c05e74
+output_path=reviews/M6-site-codex-r1.md

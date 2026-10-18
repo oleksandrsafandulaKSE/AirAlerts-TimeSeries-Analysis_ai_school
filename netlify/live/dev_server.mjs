@@ -13,6 +13,7 @@ const root = new URL("../../", import.meta.url);
 const model = JSON.parse(readFileSync(new URL("netlify/live/model/model_live.json", root)));
 const regions = JSON.parse(readFileSync(new URL("netlify/live/data/regions.json", root)));
 const seed = JSON.parse(readFileSync(new URL("netlify/live/data/seed_state.json", root)));
+const monthly = JSON.parse(readFileSync(new URL("netlify/live/data/typed_monthly.json", root)));
 const MIN = 60e3, HOUR = 60 * MIN, DAY = 24 * HOUR;
 const m = new Map();
 // values are kept as objects (the replay makes ~900 runs); every response is serialised, so nothing leaks by reference
@@ -64,7 +65,7 @@ async function replayDump(days) {
 
 const json = (res, v, code = 200) => { res.writeHead(v === null ? 503 : code, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(v)); };
 createServer(async (req, res) => {
-  if (req.url.startsWith("/api/forecast")) return json(res, await readPayload(store));
+  if (req.url.startsWith("/api/forecast")) return json(res, await readPayload(store, monthly));
   if (req.url.startsWith("/api/history")) return json(res, await readHistory(store, clock(), regions));
   if (req.url.startsWith("/api/check")) return json(res, await store.get("check"));
   if (req.url === "/" || req.url.startsWith("/index.html")) {
